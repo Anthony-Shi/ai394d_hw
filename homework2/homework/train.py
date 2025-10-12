@@ -62,7 +62,7 @@ def train(
             img, label = img.to(device), label.to(device)
 
             # TODO: implement training step
-            out = model(img.view(-1, 3*64*64))
+            out = model(img)
 
             optimizer.zero_grad()
             loss_val = loss_func(out, label)
