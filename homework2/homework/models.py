@@ -115,8 +115,9 @@ class MLPClassifierDeep(nn.Module):
         layers = []
         layers.append(torch.nn.Flatten())
         c = 3*h*w
-        for i in range(4):
+        for _ in range(4):
             layers.append(torch.nn.Linear(c, 128))
+            layers.append(torch.nn.BatchNorm1d(128))
             layers.append(torch.nn.ReLU())
             c = 128
         layers.append(torch.nn.Linear(c, num_classes))
