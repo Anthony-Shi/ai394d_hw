@@ -25,7 +25,7 @@ class ClassificationLoss(nn.Module):
         Returns:
             tensor, scalar loss
         """
-        return torch.nn.functional.cross_entropy(logits, target)
+        return nn.functional.cross_entropy(logits, target)
 
 
 class LinearClassifier(nn.Module):
@@ -43,7 +43,7 @@ class LinearClassifier(nn.Module):
         """
         super().__init__()
 
-        self.model = torch.nn.Linear(3*h*w, num_classes)
+        self.model = nn.Linear(3*h*w, num_classes)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         """
@@ -74,11 +74,11 @@ class MLPClassifier(nn.Module):
         super().__init__()
 
         layers = []
-        layers.append(torch.nn.Flatten())
-        layers.append(torch.nn.Linear(3*h*w, 128))
-        layers.append(torch.nn.ReLU())
-        layers.append(torch.nn.Linear(128, num_classes))
-        self.model = torch.nn.Sequential(*layers)
+        layers.append(nn.Flatten())
+        layers.append(nn.Linear(3*h*w, 128))
+        layers.append(nn.ReLU())
+        layers.append(nn.Linear(128, num_classes))
+        self.model = nn.Sequential(*layers)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         """
@@ -113,15 +113,15 @@ class MLPClassifierDeep(nn.Module):
         super().__init__()
 
         layers = []
-        layers.append(torch.nn.Flatten())
+        layers.append(nn.Flatten())
         c = 3*h*w
         for _ in range(3):
-            layers.append(torch.nn.Linear(c, 128))
-            #layers.append(torch.nn.BatchNorm1d(128))
-            layers.append(torch.nn.ReLU())
+            layers.append(nn.Linear(c, 128))
+            #layers.append(nn.BatchNorm1d(128))
+            layers.append(nn.ReLU())
             c = 128
-        layers.append(torch.nn.Linear(c, num_classes))
-        self.model = torch.nn.Sequential(*layers)
+        layers.append(nn.Linear(c, num_classes))
+        self.model = nn.Sequential(*layers)
    
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
@@ -136,6 +136,21 @@ class MLPClassifierDeep(nn.Module):
 
 
 class MLPClassifierDeepResidual(nn.Module):
+    class Block(nn.Module):
+        def __init__(self, in_channels, out_channels):
+            super.__init__()
+            self.linear = nn.Linear(in_channels, out_channels)
+            self.relu = nn.ReLU()
+            if in_channels != out_channels:
+                self.skip = nn.Linear(in_channels, out_channels)
+            else:
+                self.skip = nn.Identity()
+
+        
+        def forward(self, x):
+            y = self.relu(self.linear(x))
+            return self.skip(x) + y
+
     def __init__(
         self,
         h: int = 64,
@@ -155,14 +170,15 @@ class MLPClassifierDeepResidual(nn.Module):
         super().__init__()
 
         layers = []
-        layers.append(torch.nn.Flatten())
+        layers.append(nn.Flatten())
         c = 3*h*w
-        for _ in range(3):
-            layers.append(torch.nn.Linear(c, 128))
-            layers.append(torch.nn.ReLU())
+        layers.append(nn.Linear(c, 128))
+        c = 128
+        for _ in range(4):
+            layers.append(self.Block(c, 128))
             c = 128
-        layers.append(torch.nn.Linear(c, num_classes))
-        self.model = torch.nn.Sequential(*layers)
+        layers.append(nn.Linear(c, num_classes))
+        self.model = nn.Sequential(*layers)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         """
