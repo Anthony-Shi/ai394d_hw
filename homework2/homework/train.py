@@ -45,7 +45,7 @@ def train(
 
     # create loss function and optimizer
     loss_func = ClassificationLoss()
-    # optimizer = ...
+    optimizer = torch.optim.SGD(model.parameters(), lr=0.01, momentum=0.9)
 
     global_step = 0
     metrics = {"train_acc": [], "val_acc": []}
@@ -62,7 +62,17 @@ def train(
             img, label = img.to(device), label.to(device)
 
             # TODO: implement training step
-            raise NotImplementedError("Training step not implemented")
+            out = model(img.view(-1, 3*64*64))
+
+            optimizer.zero_grad()
+            loss_val = loss_func(out, label)
+            loss_val.backward()
+            optimizer.step()
+
+            with torch.no_grad():
+                pred_label = torch.argmax(out, dim=1)
+                train_accuracy = (pred_label == label).sum().item()
+                metrics["train_acc"].append(train_accuracy / batch_size)
 
             global_step += 1
 
@@ -74,13 +84,23 @@ def train(
                 img, label = img.to(device), label.to(device)
 
                 # TODO: compute validation accuracy
-                raise NotImplementedError("Validation accuracy not implemented")
+                out = model(img.view(-1, 3*64*64))
+                pred_label = torch.argmax(out, dim=1)
+                val_accuracy = (pred_label == label).sum().item()
+                metrics["val_acc"].append(val_accuracy / batch_size)
+
+                global_step += 1
+
 
         # log average train and val accuracy to tensorboard
         epoch_train_acc = torch.as_tensor(metrics["train_acc"]).mean()
         epoch_val_acc = torch.as_tensor(metrics["val_acc"]).mean()
-
-        raise NotImplementedError("Logging not implemented")
+        logger.add_scalar("train_accuracy",
+                            epoch_train_acc,
+                            epoch)
+        logger.add_scalar("val_accuracy",
+                            epoch_val_acc,
+                            epoch)
 
         # print on first, last, every 10th epoch
         if epoch == 0 or epoch == num_epoch - 1 or (epoch + 1) % 10 == 0:
