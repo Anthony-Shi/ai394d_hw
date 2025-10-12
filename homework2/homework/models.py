@@ -76,6 +76,7 @@ class MLPClassifier(nn.Module):
         layers = []
         layers.append(torch.nn.Flatten())
         layers.append(torch.nn.Linear(3*h*w, 128))
+        layers.append(torch.nn.BatchNorm1d(128))
         layers.append(torch.nn.ReLU())
         layers.append(torch.nn.Linear(128, num_classes))
         self.model = torch.nn.Sequential(*layers)

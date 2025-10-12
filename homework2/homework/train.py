@@ -84,7 +84,7 @@ def train(
                 img, label = img.to(device), label.to(device)
 
                 # TODO: compute validation accuracy
-                out = model(img.view(-1, 3*64*64))
+                out = model(img)
                 pred_label = torch.argmax(out, dim=1)
                 val_accuracy = (pred_label == label).sum().item()
                 metrics["val_acc"].append(val_accuracy / batch_size)
