@@ -138,7 +138,7 @@ class MLPClassifierDeep(nn.Module):
 class MLPClassifierDeepResidual(nn.Module):
     class Block(nn.Module):
         def __init__(self, in_channels, out_channels):
-            super.__init__()
+            super().__init__()
             self.linear = nn.Linear(in_channels, out_channels)
             self.relu = nn.ReLU()
             if in_channels != out_channels:
