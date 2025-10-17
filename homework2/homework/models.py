@@ -115,7 +115,7 @@ class MLPClassifierDeep(nn.Module):
         layers = []
         layers.append(nn.Flatten())
         c = 3*h*w
-        for _ in range(6):
+        for _ in range(4):
             layers.append(nn.Linear(c, 128))
             #layers.append(nn.BatchNorm1d(128))
             layers.append(nn.ReLU())
@@ -174,7 +174,7 @@ class MLPClassifierDeepResidual(nn.Module):
         c = 3*h*w
         layers.append(nn.Linear(c, 128))
         c = 128
-        for _ in range(5):
+        for _ in range(4):
             layers.append(self.Block(c, 128))
             c = 128
         layers.append(nn.Linear(c, num_classes))

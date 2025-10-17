@@ -1,3 +1,7 @@
-*/classification_data
-*/logs
-__pycache__/
+*.pyc
+homework*/logs/
+homework*/log/
+homework*/run/
+homework*/runs/
+homework*/data/
+homework*/*_data/
