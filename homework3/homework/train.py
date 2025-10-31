@@ -42,11 +42,11 @@ def train(
     model.train()
 
     if model_name == 'classifier':
-        train_data = load_class_data("classification_data/train", shuffle=True, batch_size=batch_size, num_workers=2)
-        val_data = load_class_data("classification_data/val", shuffle=False)
+        train_data = load_class_data("datasets/classification_data/train", shuffle=True, batch_size=batch_size, num_workers=2)
+        val_data = load_class_data("datasets/classification_data/val", shuffle=False)
     else:
-        train_data = load_drive_data("drive_data/train", shuffle=True, batch_size=batch_size, num_workers=2)
-        val_data = load_drive_data("drive_data/val", shuffle=False)
+        train_data = load_drive_data("datasets/sdrive_data/train", shuffle=True, batch_size=batch_size, num_workers=2)
+        val_data = load_drive_data("datasets/drive_data/val", shuffle=False)
 
     # create optimizer
     optimizer = torch.optim.SGD(model.parameters(), lr=lr, momentum=0.9)
