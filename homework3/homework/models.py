@@ -9,6 +9,13 @@ INPUT_STD = [0.2064, 0.1944, 0.2252]
 
 
 class Classifier(nn.Module):
+    class Block(nn.Module):
+        def __init__(self, in_channels, out_channels, kernel_size=3, stride=1):
+            super().__init__()
+            padding = (kernel_size - 1) // 2
+            self.conv = nn.Conv2d(in_channels, out_channels, kernel_size, stride, padding)
+            self.relu = nn.ReLU()
+
     def __init__(
         self,
         in_channels: int = 3,
@@ -27,7 +34,21 @@ class Classifier(nn.Module):
         self.register_buffer("input_std", torch.as_tensor(INPUT_STD))
 
         # TODO: implement
-        pass
+        
+        c0 = 32
+        cnn_layers = [
+            nn.Conv2d(in_channels, c0, kernel_size=5), # stride 1 zero padding
+            nn.ReLU(),
+        ]
+
+        c_in = c0
+        for i in range(4):
+            c_out = c_in * 2
+            cnn_layers.append(self.Block(c_in, c_out, stride=2))
+            c_in = c_out
+        cnn_layers.append(nn.Conv2d(c_in, num_classes, kernel_size=1))
+        self.network = torch.nn.Sequential(*cnn_layers)
+
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         """
@@ -41,8 +62,8 @@ class Classifier(nn.Module):
         z = (x - self.input_mean[None, :, None, None]) / self.input_std[None, :, None, None]
 
         # TODO: replace with actual forward pass
-        logits = torch.randn(x.size(0), 6)
-
+        logits = self.network(x)
+        
         return logits
 
     def predict(self, x: torch.Tensor) -> torch.Tensor:
