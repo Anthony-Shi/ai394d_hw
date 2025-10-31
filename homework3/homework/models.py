@@ -51,6 +51,7 @@ class Classifier(nn.Module):
             cnn_layers.append(self.Block(c_in, c_out, stride=2))
             c_in = c_out
         cnn_layers.append(nn.Conv2d(c_in, num_classes, kernel_size=1))
+        cnn_layers.append(nn.AdaptiveAvgPool2d(1))
         self.network = torch.nn.Sequential(*cnn_layers)
 
 
