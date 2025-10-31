@@ -69,7 +69,7 @@ class Classifier(nn.Module):
         # TODO: replace with actual forward pass
         logits = self.network(x)
         
-        return logits
+        return logits.flatten(start_dim=1)
 
     def predict(self, x: torch.Tensor) -> torch.Tensor:
         """
