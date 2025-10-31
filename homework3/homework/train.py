@@ -48,8 +48,7 @@ def train(
         train_data = load_drive_data("drive_data/train", shuffle=True, batch_size=batch_size, num_workers=2)
         val_data = load_drive_data("drive_data/val", shuffle=False)
 
-    # create loss function and optimizer
-    loss_func = torch.nn.functional.cross_entropy()
+    # create optimizer
     optimizer = torch.optim.SGD(model.parameters(), lr=lr, momentum=0.9)
 
     global_step = 0
@@ -70,7 +69,7 @@ def train(
             out = model(img)
 
             optimizer.zero_grad()
-            loss_val = loss_func(out, label)
+            loss_val = torch.nn.functional.cross_entropy(out, label)
             loss_val.backward()
             optimizer.step()
 
