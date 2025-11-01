@@ -23,11 +23,10 @@ class Classifier(nn.Module):
             self.relu = nn.ReLU()
         
         def forward(self, x):
-            x = self.conv1(self.relu(self.norm1(x)))
-            x = self.conv2(self.relu(self.norm2(x)))
-            x = self.conv3(self.relu(self.norm3(x)))
-            x = x + self.skip(x)
-            return x
+            y = self.conv1(self.relu(self.norm1(x)))
+            y = self.conv2(self.relu(self.norm2(y)))
+            y = self.conv3(self.relu(self.norm3(y)))
+            return y + self.skip(x)
 
 
     def __init__(
