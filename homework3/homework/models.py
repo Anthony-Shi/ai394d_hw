@@ -19,7 +19,7 @@ class Classifier(nn.Module):
             self.norm1 = nn.BatchNorm2d(in_channels)
             self.norm2 = nn.BatchNorm2d(out_channels)
             self.norm3 = nn.BatchNorm2d(out_channels)
-            self.skip = nn.Conv2d(in_channels, out_channels, 1)
+            self.skip = nn.Conv2d(in_channels, out_channels, 1, stride)
             self.relu = nn.ReLU()
         
         def forward(self, x):
