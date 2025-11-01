@@ -16,14 +16,16 @@ class Classifier(nn.Module):
             self.conv1 = nn.Conv2d(in_channels, out_channels, kernel_size, stride, padding)
             self.conv2 = nn.Conv2d(out_channels, out_channels, kernel_size, 1, padding)
             self.conv3 = nn.Conv2d(out_channels, out_channels, kernel_size, 1, padding)
-            self.skip = nn.Linear(in_channels, out_channels)
-            self.norm = nn.BatchNorm2d(out_channels)
+            self.norm1 = nn.BatchNorm2d(in_channels)
+            self.norm2 = nn.BatchNorm2d(out_channels)
+            self.norm3 = nn.BatchNorm2d(out_channels)
+            self.skip = nn.Conv2d(in_channels, out_channels, 1)
             self.relu = nn.ReLU()
         
         def forward(self, x):
-            x = self.conv1(self.relu(self.norm(x)))
-            x = self.conv2(self.relu(self.norm(x)))
-            x = self.conv3(self.relu(self.norm(x)))
+            x = self.conv1(self.relu(self.norm1(x)))
+            x = self.conv2(self.relu(self.norm2(x)))
+            x = self.conv3(self.relu(self.norm3(x)))
             x = x + self.skip(x)
             return x
 
