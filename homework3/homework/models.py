@@ -13,11 +13,19 @@ class Classifier(nn.Module):
         def __init__(self, in_channels, out_channels, kernel_size=3, stride=1):
             super().__init__()
             padding = (kernel_size - 1) // 2
-            self.conv = nn.Conv2d(in_channels, out_channels, kernel_size, stride, padding)
+            self.conv1 = nn.Conv2d(in_channels, out_channels, kernel_size, stride, padding)
+            self.conv2 = nn.Conv2d(out_channels, out_channels, kernel_size, 1, padding)
+            self.conv3 = nn.Conv2d(out_channels, out_channels, kernel_size, 1, padding)
+            self.skip = nn.Linear(in_channels, out_channels)
+            self.norm = nn.BatchNorm2d(out_channels)
             self.relu = nn.ReLU()
         
         def forward(self, x):
-            return self.relu(self.conv(x))
+            x = self.conv1(self.relu(self.norm(x)))
+            x = self.conv2(self.relu(self.norm(x)))
+            x = self.conv3(self.relu(self.norm(x)))
+            x = x + self.skip(x)
+            return x
 
 
     def __init__(
