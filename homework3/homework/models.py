@@ -149,16 +149,16 @@ class Detector(torch.nn.Module):
 
         c0 = 32
         cnn_layers = [
-            nn.DownSampleBlock(in_channels, c0, stride=1),
-            nn.DownSampleBlock(c0, c0 * 2, stride=2, padding=1),
+            self.DownSampleBlock(in_channels, c0, stride=1),
+            self.DownSampleBlock(c0, c0 * 2, stride=2, padding=1),
         ]
         c_out = c0 * 2
         self.conv_net = nn.Sequential(*cnn_layers)
 
         seg_in = c_out
         seg_layers = [
-            nn.UpSampleSegBlock(seg_in, seg_in // 2, stride=2, padding=1, output_padding=1),
-            nn.UpSampleSegBlock(seg_in // 2, in_channels, stride=1),
+            self.UpSampleSegBlock(seg_in, seg_in // 2, stride=2, padding=1, output_padding=1),
+            self.UpSampleSegBlock(seg_in // 2, in_channels, stride=1),
             nn.Conv2d(in_channels, num_classes, kernel_size=1),
         ]
         self.seg_net = nn.Sequential(*seg_layers)
@@ -166,8 +166,8 @@ class Detector(torch.nn.Module):
 
         depth_in = c_out
         depth_layers = [
-            nn.UpSampleSegBlock(depth_in, depth_in // 2, stride=2, padding=1, output_padding=1),
-            nn.UpSampleSegBlock(depth_in // 2, in_channels, stride=1),
+            self.UpSampleSegBlock(depth_in, depth_in // 2, stride=2, padding=1, output_padding=1),
+            self.UpSampleSegBlock(depth_in // 2, in_channels, stride=1),
             nn.Conv2d(in_channels, 1, kernel_size=1),
         ]
         self.depth_net = nn.Sequential(*depth_layers)
