@@ -111,7 +111,7 @@ class Detector(torch.nn.Module):
             y = self.conv3(self.relu(self.norm3(y)))
             return y + self.skip(x)
     
-    class UpSampleSegBlock(nn.Module):
+    class UpSampleBlock(nn.Module):
         def __init__(self, in_channels, out_channels, kernel_size=3, stride=1, padding=0, output_padding=0):
             super().__init__()
             self.conv1 = nn.ConvTranspose2d(in_channels, out_channels, kernel_size, stride, padding, output_padding=output_padding)
@@ -151,26 +151,13 @@ class Detector(torch.nn.Module):
         cnn_layers = [
             self.DownSampleBlock(in_channels, c0, stride=1),
             self.DownSampleBlock(c0, c0 * 2, stride=2, padding=1),
+            self.UpSampleBlock(c0 * 2, c0, stride=2, padding=1, output_padding=1),
+            self.UpSampleBlock(c0, in_channels, stride=1),
         ]
-        c_out = c0 * 2
-        self.conv_net = nn.Sequential(*cnn_layers)
 
-        seg_in = c_out
-        seg_layers = [
-            self.UpSampleSegBlock(seg_in, seg_in // 2, stride=2, padding=1, output_padding=1),
-            self.UpSampleSegBlock(seg_in // 2, in_channels, stride=1),
-            nn.Conv2d(in_channels, num_classes, kernel_size=1),
-        ]
-        self.seg_net = nn.Sequential(*seg_layers)
-
-
-        depth_in = c_out
-        depth_layers = [
-            self.UpSampleSegBlock(depth_in, depth_in // 2, stride=2, padding=1, output_padding=1),
-            self.UpSampleSegBlock(depth_in // 2, in_channels, stride=1),
-            nn.Conv2d(in_channels, 1, kernel_size=1),
-        ]
-        self.depth_net = nn.Sequential(*depth_layers)
+        self.conv = nn.Sequential(*cnn_layers)
+        self.seg = nn.Conv2d(in_channels, num_classes, kernel_size=1)
+        self.depth = nn.Conv2d(in_channels, 1, kernel_size=1)
 
 
     def forward(self, x: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
@@ -189,9 +176,9 @@ class Detector(torch.nn.Module):
         # optional: normalizes the input
         z = (x - self.input_mean[None, :, None, None]) / self.input_std[None, :, None, None]
 
-        y = self.conv_net(z) # (B, C, H, W)
-        logits = self.seg_net(y) # (B, num_class, H, W)
-        raw_depth = self.depth_net(y) # (B, 1, H, W)
+        y = self.conv(z) # (B, C, H, W)
+        logits = self.seg(y) # (B, num_class, H, W)
+        raw_depth = self.depth(y) # (B, 1, H, W)
 
         return logits, raw_depth
 

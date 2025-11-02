@@ -52,7 +52,7 @@ def train(
     optimizer = torch.optim.SGD(model.parameters(), lr=lr, momentum=0.9)
 
     global_step = 0
-    metrics = {"train_acc": [], "val_acc": []}
+    metrics = {"train_acc": [], "val_acc": [], "seg_train_acc": [], "depth_train_acc": []}
 
     # training loop
     for epoch in range(num_epoch):
@@ -62,57 +62,121 @@ def train(
 
         model.train()
 
-        for img, label in train_data:
-            img, label = img.to(device), label.to(device)
+        if model_name == 'classifier':
+            for img, label in train_data:
+                img, label = img.to(device), label.to(device)
 
-            # TODO: implement training step
-            out = model(img)
+                out = model(img)
 
-            optimizer.zero_grad()
-            loss_val = torch.nn.functional.cross_entropy(out, label)
-            loss_val.backward()
-            optimizer.step()
+                optimizer.zero_grad()
+                loss_val = torch.nn.functional.cross_entropy(out, label)
+                loss_val.backward()
+                optimizer.step()
 
-            with torch.no_grad():
-                pred_label = torch.argmax(out, dim=1)
-                train_accuracy = (pred_label == label).sum().item()
-                metrics["train_acc"].append(train_accuracy / batch_size)
+                with torch.no_grad():
+                    pred_label = torch.argmax(out, dim=1)
+                    train_accuracy = (pred_label == label).sum().item()
+                    metrics["train_acc"].append(train_accuracy / batch_size)
 
-            global_step += 1
+                global_step += 1
+        else:
+            for img, depth, track in train_data:
+                img, depth, track = img.to(device), depth.to(device), track.to(device)
+
+                seg_out, depth_out = model(img)
+
+                optimizer.zero_grad()
+                seg_loss = torch.nn.functional.cross_entropy(seg_out, track)
+                depth_loss = torch.nn.functional.mse_loss(depth_out, depth)
+                total_loss = seg_loss + depth_loss
+                total_loss.backward()
+                optimizer.step()
+
+                with torch.no_grad():
+                    pred_seg = torch.argmax(seg_loss, dim=1)
+                    seg_train_accuracy = (pred_seg == track).sum().item()
+                    pred_depth = depth_out[0]
+                    depth_train_accuracy = (pred_depth == depth).sum().item()
+                    metrics["seg_train_acc"].append(seg_train_accuracy / batch_size)
+                    metrics["depth_train_acc"].append(depth_train_accuracy / batch_size)
+
+                global_step += 1
 
         # disable gradient computation and switch to evaluation mode
         with torch.inference_mode():
             model.eval()
 
-            for img, label in val_data:
-                img, label = img.to(device), label.to(device)
+            if model_name == 'classifier':
+                for img, label in val_data:
+                    img, label = img.to(device), label.to(device)
 
-                # TODO: compute validation accuracy
-                out = model(img)
-                pred_label = torch.argmax(out, dim=1)
-                val_accuracy = (pred_label == label).sum().item()
-                metrics["val_acc"].append(val_accuracy / batch_size)
+                    out = model(img)
+                    pred_label = torch.argmax(out, dim=1)
+                    val_accuracy = (pred_label == label).sum().item()
+                    metrics["val_acc"].append(val_accuracy / batch_size)
 
-                global_step += 1
+                    global_step += 1
+            else:
+                for img, depth, track in val_data:
+                    img, depth, track = img.to(device), depth.to(device), track.to(device)
+
+                    seg_out, depth_out = model(img)
+                    pred_seg = torch.argmax(seg_loss, dim=1)
+                    seg_val_accuracy = (pred_seg == track).sum().item()
+                    pred_depth = depth_out[0]
+                    depth_val_accuracy = (pred_depth == depth).sum().item()
+                    metrics["seg_val_acc"].append(seg_val_accuracy / batch_size)
+                    metrics["depth_val_acc"].append(depth_val_accuracy / batch_size)
+
+                    global_step += 1
 
 
         # log average train and val accuracy to tensorboard
-        epoch_train_acc = torch.as_tensor(metrics["train_acc"]).mean()
-        epoch_val_acc = torch.as_tensor(metrics["val_acc"]).mean()
-        logger.add_scalar("train_accuracy",
-                            epoch_train_acc,
-                            epoch)
-        logger.add_scalar("val_accuracy",
-                            epoch_val_acc,
-                            epoch)
+        if model_name == 'classifier':
+            epoch_train_acc = torch.as_tensor(metrics["train_acc"]).mean()
+            epoch_val_acc = torch.as_tensor(metrics["val_acc"]).mean()
+            logger.add_scalar("train_accuracy",
+                                epoch_train_acc,
+                                epoch)
+            logger.add_scalar("val_accuracy",
+                                epoch_val_acc,
+                                epoch)
 
-        # print on first, last, every 10th epoch
-        if epoch == 0 or epoch == num_epoch - 1 or (epoch + 1) % 10 == 0:
-            print(
-                f"Epoch {epoch + 1:2d} / {num_epoch:2d}: "
-                f"train_acc={epoch_train_acc:.4f} "
-                f"val_acc={epoch_val_acc:.4f}"
-            )
+            # print on first, last, every 10th epoch
+            if epoch == 0 or epoch == num_epoch - 1 or (epoch + 1) % 10 == 0:
+                print(
+                    f"Epoch {epoch + 1:2d} / {num_epoch:2d}: "
+                    f"train_acc={epoch_train_acc:.4f} "
+                    f"val_acc={epoch_val_acc:.4f}"
+                )
+        else:
+            epoch_seg_train_acc = torch.as_tensor(metrics["seg_train_acc"]).mean()
+            epoch_depth_train_acc = torch.as_tensor(metrics["depth_train_acc"]).mean()
+            epoch_seg_val_acc = torch.as_tensor(metrics["seg_val_acc"]).mean()
+            epoch_depth_val_acc = torch.as_tensor(metrics["depth_val_acc"]).mean()
+            logger.add_scalar("seg_train_accuracy",
+                                epoch_seg_train_acc,
+                                epoch)
+            logger.add_scalar("depth_train_accuracy",
+                                epoch_depth_train_acc,
+                                epoch)
+            logger.add_scalar("seg_val_accuracy",
+                                epoch_seg_val_acc,
+                                epoch)
+            logger.add_scalar("depth_val_accuracy",
+                                epoch_depth_val_acc,
+                                epoch)
+
+            # print on first, last, every 10th epoch
+            if epoch == 0 or epoch == num_epoch - 1 or (epoch + 1) % 10 == 0:
+                print(
+                    f"Epoch {epoch + 1:2d} / {num_epoch:2d}: "
+                    f"seg_train_acc={epoch_seg_train_acc:.4f} "
+                    f"depth_train_acc={epoch_depth_train_acc:.4f} "
+                    f"seg_val_acc={epoch_seg_val_acc:.4f}"
+                    f"depth_val_acc={epoch_depth_val_acc:.4f}"
+                )
+
 
     # save and overwrite the model in the root directory for grading
     save_model(model)
