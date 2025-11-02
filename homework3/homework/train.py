@@ -52,7 +52,7 @@ def train(
     optimizer = torch.optim.SGD(model.parameters(), lr=lr, momentum=0.9)
 
     global_step = 0
-    metrics = {"train_acc": [], "val_acc": [], "seg_train_acc": [], "depth_train_acc": []}
+    metrics = {"train_acc": [], "val_acc": [], "seg_train_acc": [], "depth_train_acc": [], "seg_val_acc": [], "depth_val_acc": []}
 
     # training loop
     for epoch in range(num_epoch):
@@ -97,11 +97,11 @@ def train(
 
                 with torch.no_grad():
                     pred_seg = torch.argmax(seg_out, dim=1)
-                    seg_train_accuracy = (pred_seg == track).sum().item()
+                    seg_train_accuracy = (pred_seg == track).float().mean().item()
                     pred_depth = depth_out[0]
-                    depth_train_accuracy = (pred_depth == depth).sum().item()
-                    metrics["seg_train_acc"].append(seg_train_accuracy / batch_size)
-                    metrics["depth_train_acc"].append(depth_train_accuracy / batch_size)
+                    depth_train_accuracy = torch.abs(pred_depth - depth).mean().item()
+                    metrics["seg_train_acc"].append(seg_train_accuracy)
+                    metrics["depth_train_acc"].append(depth_train_accuracy)
 
                 global_step += 1
 
@@ -128,11 +128,11 @@ def train(
 
                     seg_out, depth_out = model(img)
                     pred_seg = torch.argmax(seg_out, dim=1)
-                    seg_val_accuracy = (pred_seg == track).sum().item()
+                    seg_val_accuracy = (pred_seg == track).float().mean().item()
                     pred_depth = depth_out[0]
-                    depth_val_accuracy = (pred_depth == depth).sum().item()
-                    metrics["seg_val_acc"].append(seg_val_accuracy / batch_size)
-                    metrics["depth_val_acc"].append(depth_val_accuracy / batch_size)
+                    depth_val_accuracy = torch.abs(pred_depth - depth).mean().item()
+                    metrics["seg_val_acc"].append(seg_val_accuracy)
+                    metrics["depth_val_acc"].append(depth_val_accuracy)
 
                     global_step += 1
 
@@ -179,7 +179,7 @@ def train(
                     f"Epoch {epoch + 1:2d} / {num_epoch:2d}: "
                     f"seg_train_acc={epoch_seg_train_acc:.4f} "
                     f"depth_train_acc={epoch_depth_train_acc:.4f} "
-                    f"seg_val_acc={epoch_seg_val_acc:.4f}"
+                    f"seg_val_acc={epoch_seg_val_acc:.4f} "
                     f"depth_val_acc={epoch_depth_val_acc:.4f}"
                 )
 
