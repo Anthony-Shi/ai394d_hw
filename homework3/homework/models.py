@@ -45,8 +45,6 @@ class Classifier(nn.Module):
 
         self.register_buffer("input_mean", torch.as_tensor(INPUT_MEAN))
         self.register_buffer("input_std", torch.as_tensor(INPUT_STD))
-
-        # TODO: implement
         
         c0 = 32
         cnn_layers = [
@@ -55,13 +53,13 @@ class Classifier(nn.Module):
         ]
 
         c_in = c0
-        for i in range(3):
+        for _ in range(3):
             c_out = c_in * 2
             cnn_layers.append(self.Block(c_in, c_out, stride=2))
             c_in = c_out
         cnn_layers.append(nn.Conv2d(c_in, num_classes, kernel_size=1))
-        cnn_layers.append(nn.AdaptiveAvgPool2d(1))
-        self.network = torch.nn.Sequential(*cnn_layers)
+        cnn_layers.append(nn.AdaptiveAvgPool2d(1)) # (B, num_class, 1, 1)
+        self.network = nn.Sequential(*cnn_layers)
 
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
@@ -75,10 +73,9 @@ class Classifier(nn.Module):
         # optional: normalizes the input
         z = (x - self.input_mean[None, :, None, None]) / self.input_std[None, :, None, None]
 
-        # TODO: replace with actual forward pass
-        logits = self.network(x)
+        logits = self.network(z)
         
-        return logits.flatten(start_dim=1)
+        return logits.flatten(start_dim=1) # (B, num_class)
 
     def predict(self, x: torch.Tensor) -> torch.Tensor:
         """
@@ -96,6 +93,43 @@ class Classifier(nn.Module):
 
 
 class Detector(torch.nn.Module):
+    class DownSampleBlock(nn.Module):
+        def __init__(self, in_channels, out_channels, kernel_size=3, stride=1, padding=0):
+            super().__init__()
+            self.conv1 = nn.Conv2d(in_channels, out_channels, kernel_size, stride, padding)
+            self.conv2 = nn.Conv2d(out_channels, out_channels, kernel_size, 1, padding)
+            self.conv3 = nn.Conv2d(out_channels, out_channels, kernel_size, 1, padding)
+            self.norm1 = nn.BatchNorm2d(in_channels)
+            self.norm2 = nn.BatchNorm2d(out_channels)
+            self.norm3 = nn.BatchNorm2d(out_channels)
+            self.skip = nn.Conv2d(in_channels, out_channels, 1, stride)
+            self.relu = nn.ReLU()
+        
+        def forward(self, x):
+            y = self.conv1(self.relu(self.norm1(x)))
+            y = self.conv2(self.relu(self.norm2(y)))
+            y = self.conv3(self.relu(self.norm3(y)))
+            return y + self.skip(x)
+    
+    class UpSampleSegBlock(nn.Module):
+        def __init__(self, in_channels, out_channels, kernel_size=3, stride=1, padding=0, output_padding=0):
+            super().__init__()
+            self.conv1 = nn.ConvTranspose2d(in_channels, out_channels, kernel_size, stride, padding, output_padding=output_padding)
+            self.conv2 = nn.ConvTranspose2d(out_channels, out_channels, kernel_size, 1, padding)
+            self.conv3 = nn.ConvTranspose2d(out_channels, out_channels, kernel_size, 1, padding)
+            self.norm1 = nn.BatchNorm2d(in_channels)
+            self.norm2 = nn.BatchNorm2d(out_channels)
+            self.norm3 = nn.BatchNorm2d(out_channels)
+            self.skip = nn.Conv2d(in_channels, out_channels, 1, stride)
+            self.relu = nn.ReLU()
+        
+        def forward(self, x):
+            y = self.conv1(self.relu(self.norm1(x)))
+            y = self.conv2(self.relu(self.norm2(y)))
+            y = self.conv3(self.relu(self.norm3(y)))
+            return y + self.skip(x)
+        
+    
     def __init__(
         self,
         in_channels: int = 3,
@@ -113,8 +147,31 @@ class Detector(torch.nn.Module):
         self.register_buffer("input_mean", torch.as_tensor(INPUT_MEAN))
         self.register_buffer("input_std", torch.as_tensor(INPUT_STD))
 
-        # TODO: implement
-        pass
+        c0 = 32
+        cnn_layers = [
+            nn.DownSampleBlock(in_channels, c0, stride=1),
+            nn.DownSampleBlock(c0, c0 * 2, stride=2, padding=1),
+        ]
+        c_out = c0 * 2
+        self.conv_net = nn.Sequential(*cnn_layers)
+
+        seg_in = c_out
+        seg_layers = [
+            nn.UpSampleSegBlock(seg_in, seg_in // 2, stride=2, padding=1, output_padding=1),
+            nn.UpSampleSegBlock(seg_in // 2, in_channels, stride=1),
+            nn.Conv2d(in_channels, num_classes, kernel_size=1),
+        ]
+        self.seg_net = nn.Sequential(*seg_layers)
+
+
+        depth_in = c_out
+        depth_layers = [
+            nn.UpSampleSegBlock(depth_in, depth_in // 2, stride=2, padding=1, output_padding=1),
+            nn.UpSampleSegBlock(depth_in // 2, in_channels, stride=1),
+            nn.Conv2d(in_channels, 1, kernel_size=1),
+        ]
+        self.depth_net = nn.Sequential(*depth_layers)
+
 
     def forward(self, x: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
         """
@@ -132,9 +189,9 @@ class Detector(torch.nn.Module):
         # optional: normalizes the input
         z = (x - self.input_mean[None, :, None, None]) / self.input_std[None, :, None, None]
 
-        # TODO: replace with actual forward pass
-        logits = torch.randn(x.size(0), 3, x.size(2), x.size(3))
-        raw_depth = torch.rand(x.size(0), x.size(2), x.size(3))
+        y = self.conv_net(z) # (B, C, H, W)
+        logits = self.seg_net(y) # (B, num_class, H, W)
+        raw_depth = self.depth_net(y) # (B, 1, H, W)
 
         return logits, raw_depth
 
