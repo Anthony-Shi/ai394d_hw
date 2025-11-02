@@ -120,7 +120,7 @@ class Detector(torch.nn.Module):
             self.norm1 = nn.BatchNorm2d(in_channels)
             self.norm2 = nn.BatchNorm2d(out_channels)
             self.norm3 = nn.BatchNorm2d(out_channels)
-            self.skip = nn.Conv2d(in_channels, out_channels, 1, stride)
+            self.skip = nn.ConvTranspose2d(in_channels, out_channels, 1, stride, output_padding=output_padding)
             self.relu = nn.ReLU()
         
         def forward(self, x):
@@ -149,10 +149,10 @@ class Detector(torch.nn.Module):
 
         c0 = 32
         cnn_layers = [
-            self.DownSampleBlock(in_channels, c0, stride=1),
+            self.DownSampleBlock(in_channels, c0, stride=2, padding=1),
             self.DownSampleBlock(c0, c0 * 2, stride=2, padding=1),
             self.UpSampleBlock(c0 * 2, c0, stride=2, padding=1, output_padding=1),
-            self.UpSampleBlock(c0, in_channels, stride=1),
+            self.UpSampleBlock(c0, in_channels, stride=2, padding=1, output_padding=1),
         ]
 
         self.conv = nn.Sequential(*cnn_layers)
@@ -178,7 +178,7 @@ class Detector(torch.nn.Module):
 
         y = self.conv(z) # (B, C, H, W)
         logits = self.seg(y) # (B, num_class, H, W)
-        raw_depth = self.depth(y) # (B, 1, H, W)
+        raw_depth = self.depth(y).squeeze() # (B, 1, H, W) -> (B, H, W)
 
         return logits, raw_depth
 

@@ -80,7 +80,10 @@ def train(
 
                 global_step += 1
         else:
-            for img, depth, track in train_data:
+            for sample in train_data:
+                img = sample["image"]
+                depth = sample["depth"]
+                track = sample["track"]
                 img, depth, track = img.to(device), depth.to(device), track.to(device)
 
                 seg_out, depth_out = model(img)
@@ -93,7 +96,7 @@ def train(
                 optimizer.step()
 
                 with torch.no_grad():
-                    pred_seg = torch.argmax(seg_loss, dim=1)
+                    pred_seg = torch.argmax(seg_out, dim=1)
                     seg_train_accuracy = (pred_seg == track).sum().item()
                     pred_depth = depth_out[0]
                     depth_train_accuracy = (pred_depth == depth).sum().item()
@@ -117,11 +120,14 @@ def train(
 
                     global_step += 1
             else:
-                for img, depth, track in val_data:
+                for sample in val_data:
+                    img = sample["image"]
+                    depth = sample["depth"]
+                    track = sample["track"]
                     img, depth, track = img.to(device), depth.to(device), track.to(device)
 
                     seg_out, depth_out = model(img)
-                    pred_seg = torch.argmax(seg_loss, dim=1)
+                    pred_seg = torch.argmax(seg_out, dim=1)
                     seg_val_accuracy = (pred_seg == track).sum().item()
                     pred_depth = depth_out[0]
                     depth_val_accuracy = (pred_depth == depth).sum().item()
