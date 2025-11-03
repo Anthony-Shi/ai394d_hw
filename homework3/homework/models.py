@@ -153,7 +153,7 @@ class Detector(torch.nn.Module):
             self.DownSampleBlock(c0, c0 * 2, stride=2, padding=1),
             self.DownSampleBlock(c0 * 2, c0 * 4, stride=2, padding=1),
         )
-        self.seg = nn.Sequenial(
+        self.seg = nn.Sequential(
             self.UpSampleBlock(c0 * 4, c0 * 2, stride=2, padding=1, output_padding=1),
             self.UpSampleBlock(c0 * 2, c0, stride=2, padding=1, output_padding=1),
             self.UpSampleBlock(c0, in_channels, stride=2, padding=1, output_padding=1),
