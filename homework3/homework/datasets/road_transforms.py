@@ -153,8 +153,10 @@ class DepthLoader(ImageLoader):
 class RandomHorizontalFlip(tv_transforms.RandomHorizontalFlip):
     def __call__(self, sample: dict):
         if np.random.rand() < self.p:
-            sample["image"] = np.flip(sample["image"], axis=2)
-            sample["track"] = np.flip(sample["track"], axis=1)
+            sample["image"] = np.flip(sample["image"], axis=2).copy()
+            flip_track = np.flip(sample["track"], axis=1).copy()
+            sample["track"] = np.select([flip_track == 1, flip_track == 2], [2, 1], flip_track)
+            sample["depth"] = np.flip(sample["depth"], axis=1).copy()
 
         return sample
 
