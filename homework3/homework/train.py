@@ -52,7 +52,7 @@ def train(
     optimizer = torch.optim.SGD(model.parameters(), lr=lr, momentum=0.9)
 
     global_step = 0
-    metrics = {"train_acc": [], "val_acc": [], "seg_train_acc": [], "depth_train_acc": [], "seg_val_acc": [], "depth_val_acc": []}
+    metrics = {"train_acc": [], "val_acc": [], "seg_train_acc": [], "depth_train_err": [], "seg_val_acc": [], "depth_val_err": []}
 
     # training loop
     for epoch in range(num_epoch):
@@ -91,6 +91,7 @@ def train(
                 optimizer.zero_grad()
                 seg_loss = torch.nn.functional.cross_entropy(seg_out, track)
                 depth_loss = torch.nn.functional.mse_loss(depth_out, depth)
+                print(seg_loss, depth_loss)
                 total_loss = seg_loss + depth_loss
                 total_loss.backward()
                 optimizer.step()
@@ -99,9 +100,9 @@ def train(
                     pred_seg = torch.argmax(seg_out, dim=1)
                     seg_train_accuracy = (pred_seg == track).float().mean().item()
                     pred_depth = depth_out[0]
-                    depth_train_accuracy = torch.abs(pred_depth - depth).mean().item()
+                    depth_train_error = torch.abs(pred_depth - depth).mean().item()
                     metrics["seg_train_acc"].append(seg_train_accuracy)
-                    metrics["depth_train_acc"].append(depth_train_accuracy)
+                    metrics["depth_train_err"].append(depth_train_error)
 
                 global_step += 1
 
@@ -130,9 +131,9 @@ def train(
                     pred_seg = torch.argmax(seg_out, dim=1)
                     seg_val_accuracy = (pred_seg == track).float().mean().item()
                     pred_depth = depth_out[0]
-                    depth_val_accuracy = torch.abs(pred_depth - depth).mean().item()
+                    depth_val_error = torch.abs(pred_depth - depth).mean().item()
                     metrics["seg_val_acc"].append(seg_val_accuracy)
-                    metrics["depth_val_acc"].append(depth_val_accuracy)
+                    metrics["depth_val_err"].append(depth_val_error)
 
                     global_step += 1
 
@@ -157,20 +158,20 @@ def train(
                 )
         else:
             epoch_seg_train_acc = torch.as_tensor(metrics["seg_train_acc"]).mean()
-            epoch_depth_train_acc = torch.as_tensor(metrics["depth_train_acc"]).mean()
+            epoch_depth_train_err = torch.as_tensor(metrics["depth_train_err"]).mean()
             epoch_seg_val_acc = torch.as_tensor(metrics["seg_val_acc"]).mean()
-            epoch_depth_val_acc = torch.as_tensor(metrics["depth_val_acc"]).mean()
+            epoch_depth_val_err = torch.as_tensor(metrics["depth_val_err"]).mean()
             logger.add_scalar("seg_train_accuracy",
                                 epoch_seg_train_acc,
                                 epoch)
-            logger.add_scalar("depth_train_accuracy",
-                                epoch_depth_train_acc,
+            logger.add_scalar("depth_train_err",
+                                epoch_depth_train_err,
                                 epoch)
             logger.add_scalar("seg_val_accuracy",
                                 epoch_seg_val_acc,
                                 epoch)
-            logger.add_scalar("depth_val_accuracy",
-                                epoch_depth_val_acc,
+            logger.add_scalar("depth_val_err",
+                                epoch_depth_val_err,
                                 epoch)
 
             # print on first, last, every 10th epoch
@@ -178,9 +179,9 @@ def train(
                 print(
                     f"Epoch {epoch + 1:2d} / {num_epoch:2d}: "
                     f"seg_train_acc={epoch_seg_train_acc:.4f} "
-                    f"depth_train_acc={epoch_depth_train_acc:.4f} "
+                    f"depth_train_err={epoch_depth_train_err:.4f} "
                     f"seg_val_acc={epoch_seg_val_acc:.4f} "
-                    f"depth_val_acc={epoch_depth_val_acc:.4f}"
+                    f"depth_val_err={epoch_depth_val_err:.4f}"
                 )
 
 

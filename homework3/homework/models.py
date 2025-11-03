@@ -148,21 +148,22 @@ class Detector(torch.nn.Module):
         self.register_buffer("input_std", torch.as_tensor(INPUT_STD))
 
         c0 = 32
-        self.conv = nn.Sequential(
-            self.DownSampleBlock(in_channels, c0, stride=2, padding=1),
-            self.DownSampleBlock(c0, c0 * 2, stride=2, padding=1),
-            self.DownSampleBlock(c0 * 2, c0 * 4, stride=2, padding=1),
-        )
-        self.seg = nn.Sequential(
-            self.UpSampleBlock(c0 * 4, c0 * 2, stride=2, padding=1, output_padding=1),
-            self.UpSampleBlock(c0 * 2, c0, stride=2, padding=1, output_padding=1),
-            self.UpSampleBlock(c0, in_channels, stride=2, padding=1, output_padding=1),
-            nn.Conv2d(in_channels, num_classes, kernel_size=1)
-        )
-        self.depth = nn.Sequential(
-            self.UpSampleBlock(c0 * 4, c0 * 2, stride=2, padding=1, output_padding=1),
-            self.UpSampleBlock(c0 * 2, c0, stride=2, padding=1, output_padding=1),
-            self.UpSampleBlock(c0, in_channels, stride=2, padding=1, output_padding=1),
+        
+        self.down1 = self.DownSampleBlock(in_channels, c0, stride=2, padding=1),
+        self.down2 = self.DownSampleBlock(c0, c0 * 2, stride=2, padding=1),
+        self.down3 = self.DownSampleBlock(c0 * 2, c0 * 4, stride=2, padding=1),
+
+        
+        self.seg_up1 = self.UpSampleBlock(c0 * 4, c0 * 2, stride=2, padding=1, output_padding=1),
+        self.seg_up2 = self.UpSampleBlock(c0 * 2, c0, stride=2, padding=1, output_padding=1),
+        self.seg_up3 = self.UpSampleBlock(c0, in_channels, stride=2, padding=1, output_padding=1),
+        self.seg_out = nn.Conv2d(in_channels, num_classes, kernel_size=1)
+
+        
+        self.depth_up1 = self.UpSampleBlock(c0 * 4, c0 * 2, stride=2, padding=1, output_padding=1),
+        self.depth_up2 = self.UpSampleBlock(c0 * 2, c0, stride=2, padding=1, output_padding=1),
+        self.depth_up3 = self.UpSampleBlock(c0, in_channels, stride=2, padding=1, output_padding=1),
+        self.depth_out = nn.Sequential(
             nn.Conv2d(in_channels, 1, kernel_size=1),
             nn.Sigmoid()
         )
@@ -184,9 +185,19 @@ class Detector(torch.nn.Module):
         # optional: normalizes the input
         z = (x - self.input_mean[None, :, None, None]) / self.input_std[None, :, None, None]
 
-        y = self.conv(z) # (B, C, H, W)
-        logits = self.seg(y) # (B, num_class, H, W)
-        raw_depth = self.depth(y).squeeze() # (B, 1, H, W) -> (B, H, W)
+        a1 = self.down1(z) # (B, C, H, W)
+        a2 = self.down1(a1)
+        a3 = self.down1(a2)
+
+        s = self.seg_up1(a3)
+        s = self.seg_up2(torch.cat((s, a2), dim=1))
+        s = self.seg_up3(torch.cat((s, a1), dim=1))
+        logits = self.seg_out(s) # (B, num_class, H, W)
+
+        d = self.depth_up1(a3)
+        d = self.depth_up2(torch.cat((d, a2), dim=1))
+        d = self.depth_up3(torch.cat((d, a1), dim=1))
+        raw_depth = self.depth_out(d).squeeze() # (B, 1, H, W) -> (B, H, W)
 
         return logits, raw_depth
 
