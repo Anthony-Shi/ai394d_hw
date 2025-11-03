@@ -149,20 +149,20 @@ class Detector(torch.nn.Module):
 
         c0 = 32
         
-        self.down1 = self.DownSampleBlock(in_channels, c0, stride=2, padding=1),
-        self.down2 = self.DownSampleBlock(c0, c0 * 2, stride=2, padding=1),
-        self.down3 = self.DownSampleBlock(c0 * 2, c0 * 4, stride=2, padding=1),
+        self.down1 = self.DownSampleBlock(in_channels, c0, stride=2, padding=1)
+        self.down2 = self.DownSampleBlock(c0, c0 * 2, stride=2, padding=1)
+        self.down3 = self.DownSampleBlock(c0 * 2, c0 * 4, stride=2, padding=1)
 
         
-        self.seg_up1 = self.UpSampleBlock(c0 * 4, c0 * 2, stride=2, padding=1, output_padding=1),
-        self.seg_up2 = self.UpSampleBlock(c0 * 2, c0, stride=2, padding=1, output_padding=1),
-        self.seg_up3 = self.UpSampleBlock(c0, in_channels, stride=2, padding=1, output_padding=1),
+        self.seg_up1 = self.UpSampleBlock(c0 * 4, c0 * 2, stride=2, padding=1, output_padding=1)
+        self.seg_up2 = self.UpSampleBlock(c0 * 2 + c0 * 2, c0, stride=2, padding=1, output_padding=1)
+        self.seg_up3 = self.UpSampleBlock(c0 + c0, in_channels, stride=2, padding=1, output_padding=1)
         self.seg_out = nn.Conv2d(in_channels, num_classes, kernel_size=1)
 
         
-        self.depth_up1 = self.UpSampleBlock(c0 * 4, c0 * 2, stride=2, padding=1, output_padding=1),
-        self.depth_up2 = self.UpSampleBlock(c0 * 2, c0, stride=2, padding=1, output_padding=1),
-        self.depth_up3 = self.UpSampleBlock(c0, in_channels, stride=2, padding=1, output_padding=1),
+        self.depth_up1 = self.UpSampleBlock(c0 * 4, c0 * 2, stride=2, padding=1, output_padding=1)
+        self.depth_up2 = self.UpSampleBlock(c0 * 2 + c0 * 2, c0, stride=2, padding=1, output_padding=1)
+        self.depth_up3 = self.UpSampleBlock(c0 + c0, in_channels, stride=2, padding=1, output_padding=1)
         self.depth_out = nn.Sequential(
             nn.Conv2d(in_channels, 1, kernel_size=1),
             nn.Sigmoid()
@@ -186,8 +186,8 @@ class Detector(torch.nn.Module):
         z = (x - self.input_mean[None, :, None, None]) / self.input_std[None, :, None, None]
 
         a1 = self.down1(z) # (B, C, H, W)
-        a2 = self.down1(a1)
-        a3 = self.down1(a2)
+        a2 = self.down2(a1)
+        a3 = self.down3(a2)
 
         s = self.seg_up1(a3)
         s = self.seg_up2(torch.cat((s, a2), dim=1))

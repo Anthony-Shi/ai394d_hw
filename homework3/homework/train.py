@@ -91,8 +91,7 @@ def train(
                 optimizer.zero_grad()
                 seg_loss = torch.nn.functional.cross_entropy(seg_out, track)
                 depth_loss = torch.nn.functional.mse_loss(depth_out, depth)
-                print(seg_loss, depth_loss)
-                total_loss = seg_loss + depth_loss
+                total_loss = seg_loss + 0.5 * depth_loss
                 total_loss.backward()
                 optimizer.step()
 
@@ -105,6 +104,7 @@ def train(
                     metrics["depth_train_err"].append(depth_train_error)
 
                 global_step += 1
+            #print(seg_loss, depth_loss)
 
         # disable gradient computation and switch to evaluation mode
         with torch.inference_mode():
