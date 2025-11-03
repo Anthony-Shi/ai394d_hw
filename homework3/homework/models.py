@@ -152,12 +152,17 @@ class Detector(torch.nn.Module):
             self.DownSampleBlock(in_channels, c0, stride=2, padding=1),
             self.DownSampleBlock(c0, c0 * 2, stride=2, padding=1),
             self.DownSampleBlock(c0 * 2, c0 * 4, stride=2, padding=1),
+        )
+        self.seg = nn.Sequenial(
             self.UpSampleBlock(c0 * 4, c0 * 2, stride=2, padding=1, output_padding=1),
             self.UpSampleBlock(c0 * 2, c0, stride=2, padding=1, output_padding=1),
-            self.UpSampleBlock(c0, in_channels, stride=2, padding=1, output_padding=1)
+            self.UpSampleBlock(c0, in_channels, stride=2, padding=1, output_padding=1),
+            nn.Conv2d(in_channels, num_classes, kernel_size=1)
         )
-        self.seg = nn.Conv2d(in_channels, num_classes, kernel_size=1)
         self.depth = nn.Sequential(
+            self.UpSampleBlock(c0 * 4, c0 * 2, stride=2, padding=1, output_padding=1),
+            self.UpSampleBlock(c0 * 2, c0, stride=2, padding=1, output_padding=1),
+            self.UpSampleBlock(c0, in_channels, stride=2, padding=1, output_padding=1),
             nn.Conv2d(in_channels, 1, kernel_size=1),
             nn.Sigmoid()
         )
