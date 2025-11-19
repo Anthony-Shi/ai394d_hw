@@ -69,7 +69,8 @@ def train(
             optim.step()
 
             with torch.no_grad():
-                metrics["train_err"].append(loss.item())
+                train_error = torch.abs(out - waypoints).mean().item()
+                metrics["train_err"].append(train_error)
 
             global_step += 1
         
