@@ -42,7 +42,7 @@ class MLPPlanner(nn.Module):
 
         layers = []
         c = n_track*2*2
-        for _ in range(4):
+        for _ in range(3):
             layers.append(self.Block(c, 128))
             c = 128
         self.network = nn.Sequential(

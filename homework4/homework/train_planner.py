@@ -46,7 +46,7 @@ def train(
     optim = torch.optim.SGD(model.parameters(), lr=lr, momentum=0.9)
 
     global_step = 0
-    metrics = {"train_acc": [], "val_acc": []}
+    metrics = {"train_err": [], "val_acc": []}
 
     for epoch in range(num_epoch):
         for key in metrics:
@@ -69,7 +69,7 @@ def train(
             optim.step()
 
             with torch.no_grad():
-                metrics["train_acc"].append(loss.item())
+                metrics["train_err"].append(loss.item())
 
             global_step += 1
         
@@ -88,10 +88,10 @@ def train(
 
                 global_step += 1
 
-        epoch_train_acc = torch.as_tensor(metrics["train_acc"]).mean()
+        epoch_train_err = torch.as_tensor(metrics["train_err"]).mean()
         epoch_val_acc = torch.as_tensor(metrics["val_acc"]).mean()
-        logger.add_scalar("train_accuracy",
-                            epoch_train_acc,
+        logger.add_scalar("train_error",
+                            epoch_train_err,
                             epoch)
         logger.add_scalar("val_accuracy",
                             epoch_val_acc,
@@ -101,7 +101,7 @@ def train(
         if epoch == 0 or epoch == num_epoch - 1 or (epoch + 1) % 10 == 0:
             print(
                 f"Epoch {epoch + 1:2d} / {num_epoch:2d}: "
-                f"train_acc={epoch_train_acc:.4f} "
+                f"train_err={epoch_train_err:.4f} "
                 f"val_acc={epoch_val_acc:.4f}"
             )
 
