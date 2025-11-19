@@ -15,7 +15,7 @@ class MLPPlanner(nn.Module):
 
             self.linear = nn.Linear(in_channels, out_channels)
             self.relu = nn.ReLU()
-            self.norm = nn.BatchNorm1d(in_channels)
+            self.norm = nn.BatchNorm1d(out_channels)
             if in_channels != out_channels:
                 self.skip = nn.Linear(in_channels, out_channels)
             else:
