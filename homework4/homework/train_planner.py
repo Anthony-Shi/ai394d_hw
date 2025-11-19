@@ -7,10 +7,11 @@ import torch
 import torch.utils.tensorboard as tb
 
 from .models import load_model, save_model
-from .datasets import load_data
+from .datasets.road_dataset import load_data
 
 def train(
     exp_dir: str = "logs",
+    transform_pipeline: str = "default",
     model_name: str = "classifier",
     num_epoch: int = 50,
     lr: float = 1e-3,
@@ -38,8 +39,8 @@ def train(
     model = model.to(device)
     model.train()
 
-    train_data = load_data("drive_data/train", transform_pipeline="aug", shuffle=True, batch_size=batch_size, num_workers=2)
-    val_data = load_data("drive_data/val", transform_pipeline="aug", shuffle=False)
+    train_data = load_data("drive_data/train", transform_pipeline=transform_pipeline, shuffle=True, batch_size=batch_size, num_workers=2)
+    val_data = load_data("drive_data/val", transform_pipeline=transform_pipeline, shuffle=False)
 
     optim = torch.optim.SGD(model.parameters(), lr=lr, momentum=0.9)
 
@@ -115,6 +116,7 @@ if __name__ == "__main__":
 
     parser.add_argument("--exp_dir", type=str, default="logs")
     parser.add_argument("--model_name", type=str, required=True)
+    parser.add_argument("--transform_pipeline", type=str, default="default")
     parser.add_argument("--num_epoch", type=int, default=50)
     parser.add_argument("--lr", type=float, default=1e-3)
     parser.add_argument("--batch_size", type=int, default=128)
