@@ -22,7 +22,7 @@ class MLPPlanner(nn.Module):
                 self.skip = nn.Identity()
         
         def forward(self, x):
-            return self.relu(self.linear(self.norm(x))) + self.skip
+            return self.relu(self.linear(self.norm(x))) + self.skip(x)
 
 
     def __init__(
@@ -48,7 +48,7 @@ class MLPPlanner(nn.Module):
         self.network = nn.Sequential(
             nn.Flatten(),
             *layers,
-            nn.Linear(c, n_waypoints*2),
+            nn.Linear(c, self.n_waypoints*2),
         )
 
     def forward(
@@ -70,7 +70,7 @@ class MLPPlanner(nn.Module):
         Returns:
             torch.Tensor: future waypoints with shape (b, n_waypoints, 2)
         """
-        return self.network(torch.cat([track_left, track_right], dim=1))
+        return self.network(torch.cat([track_left, track_right], dim=1)).view(-1, self.n_waypoints, 2)
 
 
 class TransformerPlanner(nn.Module):
