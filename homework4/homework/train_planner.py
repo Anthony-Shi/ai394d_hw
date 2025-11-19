@@ -17,6 +17,7 @@ def train(
     lr: float = 1e-3,
     batch_size: int = 128,
     seed: int = 2024,
+    num_workers: int = 2,
     **kwargs,
 ):
     if torch.cuda.is_available():
@@ -39,7 +40,7 @@ def train(
     model = model.to(device)
     model.train()
 
-    train_data = load_data("drive_data/train", transform_pipeline=transform_pipeline, shuffle=True, batch_size=batch_size, num_workers=2)
+    train_data = load_data("drive_data/train", transform_pipeline=transform_pipeline, shuffle=True, batch_size=batch_size, num_workers=num_workers)
     val_data = load_data("drive_data/val", transform_pipeline=transform_pipeline, shuffle=False)
 
     optim = torch.optim.SGD(model.parameters(), lr=lr, momentum=0.9)
@@ -121,6 +122,7 @@ if __name__ == "__main__":
     parser.add_argument("--lr", type=float, default=1e-3)
     parser.add_argument("--batch_size", type=int, default=128)
     parser.add_argument("--seed", type=int, default=2024)
+    parser.add_argument("--num_workers", type=int, default=2)
 
     """
     Usage:
