@@ -91,7 +91,7 @@ def train(
                 optimizer.zero_grad()
                 seg_loss = torch.nn.functional.cross_entropy(seg_out, track)
                 depth_loss = torch.nn.functional.mse_loss(depth_out, depth)
-                total_loss = seg_loss + 0.5 * depth_loss
+                total_loss = seg_loss + 0.6 * depth_loss
                 total_loss.backward()
                 optimizer.step()
 
