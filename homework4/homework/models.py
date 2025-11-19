@@ -22,7 +22,7 @@ class MLPPlanner(nn.Module):
                 self.skip = nn.Identity()
         
         def forward(self, x):
-            return self.relu(self.linear(self.norm(x))) + self.skip(x)
+            return self.relu(self.norm(self.linear(x))) + self.skip(x)
 
 
     def __init__(
