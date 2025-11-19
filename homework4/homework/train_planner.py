@@ -46,7 +46,7 @@ def train(
     optim = torch.optim.SGD(model.parameters(), lr=lr, momentum=0.9)
 
     global_step = 0
-    metrics = {"train_err": [], "val_acc": []}
+    metrics = {"train_err": [], "val_err": []}
 
     for epoch in range(num_epoch):
         for key in metrics:
@@ -84,17 +84,17 @@ def train(
 
                 pred = model(track_left, track_right)
                 val_error = torch.abs(pred - waypoints).mean().item()
-                metrics["val_acc"].append(val_error)
+                metrics["val_err"].append(val_error)
 
                 global_step += 1
 
         epoch_train_err = torch.as_tensor(metrics["train_err"]).mean()
-        epoch_val_acc = torch.as_tensor(metrics["val_acc"]).mean()
+        epoch_val_err = torch.as_tensor(metrics["val_err"]).mean()
         logger.add_scalar("train_error",
                             epoch_train_err,
                             epoch)
-        logger.add_scalar("val_accuracy",
-                            epoch_val_acc,
+        logger.add_scalar("val_erruracy",
+                            epoch_val_err,
                             epoch)
 
         # print on first, last, every 10th epoch
@@ -102,7 +102,7 @@ def train(
             print(
                 f"Epoch {epoch + 1:2d} / {num_epoch:2d}: "
                 f"train_err={epoch_train_err:.4f} "
-                f"val_acc={epoch_val_acc:.4f}"
+                f"val_err={epoch_val_err:.4f}"
             )
 
     # save and overwrite the model in the root directory for grading

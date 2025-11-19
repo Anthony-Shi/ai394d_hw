@@ -47,6 +47,7 @@ class MLPPlanner(nn.Module):
             c = 128
         self.network = nn.Sequential(
             nn.Flatten(),
+            nn.BatchNorm1d(self.n_track*2*2),
             *layers,
             nn.Linear(c, self.n_waypoints*2),
         )
