@@ -58,19 +58,20 @@ def train(
             track_left = sample["track_left"]
             track_right = sample["track_right"]
             waypoints = sample["waypoints"]
-            track_left, track_right, waypoints = track_left.to(device), track_right.to(device), waypoints.to(device)
+            waypoints_mask = sample["waypoints_mask"]
+            track_left, track_right, waypoints, waypoints_mask = track_left.to(device), track_right.to(device), waypoints.to(device), waypoints_mask.to(device)
 
             out = model(track_left, track_right)
 
             optim.zero_grad()
-            #print(out.shape, waypoints.shape)
-            loss = torch.nn.functional.mse_loss(out, waypoints)
-            loss.backward()
+            loss = torch.nn.functional.mse_loss(out, waypoints, reduction='none')
+            loss_masked = loss * waypoints_mask[..., None]
+            train_loss = loss_masked.mean()
+            train_loss.backward()
             optim.step()
 
             with torch.no_grad():
-                train_error = torch.abs(out - waypoints).mean().item()
-                metrics["train_err"].append(train_error)
+                metrics["train_err"].append(train_loss.item())
 
             global_step += 1
         
