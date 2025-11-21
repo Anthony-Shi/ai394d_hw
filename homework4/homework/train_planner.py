@@ -8,6 +8,7 @@ import torch.utils.tensorboard as tb
 
 from .models import load_model, save_model
 from .datasets.road_dataset import load_data
+from ..grader.metrics import PlannerMetric
 
 def train(
     exp_dir: str = "logs",
@@ -36,6 +37,11 @@ def train(
     log_dir = Path(exp_dir) / f"{model_name}_{datetime.now().strftime('%m%d_%H%M%S')}"
     logger = tb.SummaryWriter(log_dir)
 
+    # set up planner metric
+    train_metric = PlannerMetric()
+    val_metric = PlannerMetric()
+
+
     model = load_model(model_name, **kwargs)
     model = model.to(device)
     model.train()
@@ -46,11 +52,9 @@ def train(
     optim = torch.optim.SGD(model.parameters(), lr=lr, momentum=0.9)
 
     global_step = 0
-    metrics = {"train_err": [], "val_err": []}
 
     for epoch in range(num_epoch):
-        for key in metrics:
-            metrics[key].clear()
+        train_metric.reset()
 
         model.train()
 
@@ -64,14 +68,15 @@ def train(
             out = model(track_left, track_right)
 
             optim.zero_grad()
-            loss = torch.nn.functional.mse_loss(out, waypoints, reduction='none')
+            loss = (out - waypoints).abs()
             loss_masked = loss * waypoints_mask[..., None]
-            train_loss = loss_masked.mean()
-            train_loss.backward()
+            longitudinal_loss = loss_masked[..., 0].mean()
+            lateral_loss = loss_masked[..., 1].mean()
+            l1_loss = longitudinal_loss + lateral_loss
+            l1_loss.backward()
             optim.step()
 
-            with torch.no_grad():
-                metrics["train_err"].append(train_loss.item())
+            train_metric.add(out, waypoints, waypoints_mask)
 
             global_step += 1
         
@@ -85,26 +90,31 @@ def train(
                 track_left, track_right, waypoints = track_left.to(device), track_right.to(device), waypoints.to(device)
 
                 pred = model(track_left, track_right)
-                val_error = torch.abs(pred - waypoints).mean().item()
-                metrics["val_err"].append(val_error)
+                val_metric.add(pred, waypoints, waypoints_mask)
 
                 global_step += 1
 
-        epoch_train_err = torch.as_tensor(metrics["train_err"]).mean()
-        epoch_val_err = torch.as_tensor(metrics["val_err"]).mean()
-        logger.add_scalar("train_error",
-                            epoch_train_err,
+        train_dict = train_metric.compute()
+        val_dict = val_metric.compute()
+        logger.add_scalar("train_longitudinal_error",
+                            train_dict["longitudinal_error"],
                             epoch)
-        logger.add_scalar("val_erruracy",
-                            epoch_val_err,
+        logger.add_scalar("train_lateral_error",
+                            train_dict["lateral_error"],
+                            epoch)
+        logger.add_scalar("val_longitudinal_error",
+                            val_dict["longitudinal_error"],
+                            epoch)
+        logger.add_scalar("val_lateral_error",
+                            val_dict["lateral_error"],
                             epoch)
 
         # print on first, last, every 10th epoch
         if epoch == 0 or epoch == num_epoch - 1 or (epoch + 1) % 10 == 0:
             print(
                 f"Epoch {epoch + 1:2d} / {num_epoch:2d}: "
-                f"train_err={epoch_train_err:.4f} "
-                f"val_err={epoch_val_err:.4f}"
+                f"train_err={train_dict["l1_error"]:.4f} "
+                f"val_err={val_dict["l1_error"]:.4f}"
             )
 
     # save and overwrite the model in the root directory for grading
