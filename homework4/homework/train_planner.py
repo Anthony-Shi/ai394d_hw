@@ -8,7 +8,7 @@ import torch.utils.tensorboard as tb
 
 from .models import load_model, save_model
 from .datasets.road_dataset import load_data
-from ..grader.metrics import PlannerMetric
+from .metrics import PlannerMetric
 
 def train(
     exp_dir: str = "logs",
@@ -72,7 +72,7 @@ def train(
             loss_masked = loss * waypoints_mask[..., None]
             longitudinal_loss = loss_masked[..., 0].mean()
             lateral_loss = loss_masked[..., 1].mean()
-            l1_loss = longitudinal_loss + lateral_loss
+            l1_loss = longitudinal_loss + 2 * lateral_loss
             l1_loss.backward()
             optim.step()
 
@@ -87,7 +87,8 @@ def train(
                 track_left = sample["track_left"]
                 track_right = sample["track_right"]
                 waypoints = sample["waypoints"]
-                track_left, track_right, waypoints = track_left.to(device), track_right.to(device), waypoints.to(device)
+                waypoints_mask = sample["waypoints_mask"]
+                track_left, track_right, waypoints, waypoints_mask = track_left.to(device), track_right.to(device), waypoints.to(device), waypoints_mask.to(device)
 
                 pred = model(track_left, track_right)
                 val_metric.add(pred, waypoints, waypoints_mask)
