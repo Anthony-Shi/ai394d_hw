@@ -58,18 +58,22 @@ def train(
         model.train()
 
         for sample in train_data:
+            image = sample["image"] # (b, c, h, w)
             track_left = sample["track_left"] # (b, 10, 2)
             track_right = sample["track_right"] # (b, 10, 2)
             waypoints = sample["waypoints"] # (b, 3, 2)
             waypoints_mask = sample["waypoints_mask"] # (b, 3)
-            track_left, track_right, waypoints, waypoints_mask = track_left.to(device), track_right.to(device), waypoints.to(device), waypoints_mask.to(device)
+            track_left, track_right, waypoints, waypoints_mask, image = track_left.to(device), track_right.to(device), waypoints.to(device), waypoints_mask.to(device), image.to(device)
 
             waypoints_mean = waypoints.mean(dim=(0,1))
             waypoints_std  = waypoints.std(dim=(0,1))
             waypoints_norm = (waypoints - waypoints_mean) / waypoints_std
 
-            out = model(track_left, track_right)
-            
+            if model_name == "mlp_planner":
+                out = model(track_left, track_right)
+            elif model_name == "cnn_planner":
+                out = model(image)
+
             optim.zero_grad()
             loss = (out - waypoints).abs()
             n = waypoints_mask.sum()
@@ -79,7 +83,7 @@ def train(
             l1_loss = longitudinal_loss + lateral_loss
             l1_loss.backward()
             optim.step()
-
+            
             train_metric.add(out, waypoints, waypoints_mask)
 
             global_step += 1
