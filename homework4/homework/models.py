@@ -40,6 +40,11 @@ class MLPPlanner(nn.Module):
         self.n_track = n_track
         self.n_waypoints = n_waypoints
 
+        '''
+        self.register_buffer('input_mean', torch.as_tensor(INPUT_MEAN))
+        self.register_buffer('input_std', torch.as_tensor(INPUT_STD))
+        '''
+
         c = n_track*2*2
         '''
         layers = []
@@ -76,7 +81,9 @@ class MLPPlanner(nn.Module):
         Returns:
             torch.Tensor: future waypoints with shape (b, n_waypoints, 2)
         """
-        return self.network(torch.cat([track_left, track_right], dim=1)).view(-1, self.n_waypoints, 2)
+        x = torch.cat([track_left, track_right], dim=1)
+        z = (x - self.input_mean[None, :, None, None]) / self.input_std[None, :, None, None]
+        return self.network(z).view(-1, self.n_waypoints, 2)
 
 
 class TransformerPlanner(nn.Module):
