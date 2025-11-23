@@ -157,14 +157,14 @@ class CNNPlanner(nn.Module):
         self.n_waypoints = n_waypoints
 
         c_in, c_out = 3, 32
-        self.convnet = []
+        conv_layers = []
         for _ in range(3):
-            self.convnet.append(self.DownSampleBlock(c_in, c_out, stride=2))
+            conv_layers.append(self.DownSampleBlock(c_in, c_out, stride=2))
             c_in = c_out
             c_out *= 2
-        
+        self.conv_net = nn.Sequential(*conv_layers)
         self.pool = nn.AdaptiveAvgPool2d(1)
-        self.linear = nn.Linear(c_out, n_waypoints*2)
+        self.linear = nn.Linear(c_out // 2, n_waypoints*2)
 
     def forward(self, image: torch.Tensor, **kwargs) -> torch.Tensor:
         """
@@ -175,8 +175,8 @@ class CNNPlanner(nn.Module):
             torch.FloatTensor: future waypoints with shape (b, n, 2)
         """
         x = image
-        x = (x - self.input_mean[None, :, None, None]) / self.input_std[None, :, None, None]
-        x = self.linear(self.pool(self.convnet(x)))
+        x = self.pool(self.conv_net(x))
+        x = self.linear(x.squeeze())
         return x.view(-1, self.n_waypoints, 2)
 
 
