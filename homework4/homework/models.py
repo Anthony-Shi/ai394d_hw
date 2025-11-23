@@ -27,6 +27,8 @@ class MLPPlanner(nn.Module):
 
     def __init__(
         self,
+        input_mean,
+        input_std,
         n_track: int = 10,
         n_waypoints: int = 3,
     ):
@@ -39,26 +41,15 @@ class MLPPlanner(nn.Module):
 
         self.n_track = n_track
         self.n_waypoints = n_waypoints
-
-        '''
-        self.register_buffer('input_mean', torch.as_tensor(INPUT_MEAN))
-        self.register_buffer('input_std', torch.as_tensor(INPUT_STD))
-        '''
-
         c = n_track*2*2
-        '''
-        layers = []
-        for _ in range(3):
-            layers.append(self.Block(c, 128))
-            c = 128
-        '''
+
         self.network = nn.Sequential(
             nn.Flatten(),
             nn.BatchNorm1d(self.n_track*2*2),
             self.Block(c, 256),
             self.Block(256, 256),
             self.Block(256, 128),
-            #*layers,
+            self.Block(128, 128),
             nn.Linear(128, self.n_waypoints*2),
         )
 
@@ -82,7 +73,6 @@ class MLPPlanner(nn.Module):
             torch.Tensor: future waypoints with shape (b, n_waypoints, 2)
         """
         x = torch.cat([track_left, track_right], dim=1)
-        #z = (x - self.input_mean[None, :, None, None]) / self.input_std[None, :, None, None]
         return self.network(x).view(-1, self.n_waypoints, 2)
 
 
@@ -168,9 +158,6 @@ class CNNPlanner(nn.Module):
 
         self.n_waypoints = n_waypoints
 
-        self.register_buffer("input_mean", torch.as_tensor(INPUT_MEAN), persistent=False)
-        self.register_buffer("input_std", torch.as_tensor(INPUT_STD), persistent=False)
-
     def forward(self, image: torch.Tensor, **kwargs) -> torch.Tensor:
         """
         Args:
@@ -182,7 +169,6 @@ class CNNPlanner(nn.Module):
         x = image
         x = (x - self.input_mean[None, :, None, None]) / self.input_std[None, :, None, None]
 
-        raise NotImplementedError
 
 
 MODEL_FACTORY = {

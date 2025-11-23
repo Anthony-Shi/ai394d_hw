@@ -41,7 +41,6 @@ def train(
     train_metric = PlannerMetric()
     val_metric = PlannerMetric()
 
-
     model = load_model(model_name, **kwargs)
     model = model.to(device)
     model.train()
@@ -72,7 +71,7 @@ def train(
             loss_masked = loss * waypoints_mask[..., None]
             longitudinal_loss = loss_masked[..., 0].mean()
             lateral_loss = loss_masked[..., 1].mean()
-            l1_loss = longitudinal_loss + 2 * lateral_loss
+            l1_loss = 2 * longitudinal_loss + lateral_loss
             l1_loss.backward()
             optim.step()
 
