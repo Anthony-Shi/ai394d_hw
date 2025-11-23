@@ -82,8 +82,8 @@ class MLPPlanner(nn.Module):
             torch.Tensor: future waypoints with shape (b, n_waypoints, 2)
         """
         x = torch.cat([track_left, track_right], dim=1)
-        z = (x - self.input_mean[None, :, None, None]) / self.input_std[None, :, None, None]
-        return self.network(z).view(-1, self.n_waypoints, 2)
+        #z = (x - self.input_mean[None, :, None, None]) / self.input_std[None, :, None, None]
+        return self.network(x).view(-1, self.n_waypoints, 2)
 
 
 class TransformerPlanner(nn.Module):
