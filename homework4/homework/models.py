@@ -14,7 +14,7 @@ class MLPPlanner(nn.Module):
             super().__init__()
 
             self.linear = nn.Linear(in_channels, out_channels)
-            self.norm = nn.BatchNorm1d(out_channels)
+            self.norm = nn.LayerNorm(out_channels)
             self.relu = nn.ReLU()
             if in_channels != out_channels:
                 self.skip = nn.Linear(in_channels, out_channels)
@@ -40,16 +40,21 @@ class MLPPlanner(nn.Module):
         self.n_track = n_track
         self.n_waypoints = n_waypoints
 
-        layers = []
         c = n_track*2*2
+        '''
+        layers = []
         for _ in range(3):
             layers.append(self.Block(c, 128))
             c = 128
+        '''
         self.network = nn.Sequential(
             nn.Flatten(),
             nn.BatchNorm1d(self.n_track*2*2),
-            *layers,
-            nn.Linear(c, self.n_waypoints*2),
+            self.Block(c, 256),
+            self.Block(256, 256),
+            self.Block(256, 128),
+            #*layers,
+            nn.Linear(128, self.n_waypoints*2),
         )
 
     def forward(
@@ -110,7 +115,44 @@ class TransformerPlanner(nn.Module):
         raise NotImplementedError
 
 
-class CNNPlanner(torch.nn.Module):
+class CNNPlanner(nn.Module):
+    class DownSampleBlock(nn.Module):
+        def __init__(self, in_channels, out_channels, kernel_size=3, stride=1):
+            super().__init__()
+            padding = (kernel_size - 1) // 2
+            self.conv1 = nn.Conv2d(in_channels, out_channels, kernel_size, stride, padding)
+            self.conv2 = nn.Conv2d(out_channels, out_channels, kernel_size, 1, padding)
+            self.conv3 = nn.Conv2d(out_channels, out_channels, kernel_size, 1, padding)
+            self.bn = nn.BatchNorm2d(out_channels)
+            self.relu = nn.ReLU()
+            self.skip = nn.Conv2d(in_channels, out_channels, 1, stride=stride)
+            
+
+        def forward(self, x):
+            y = self.relu(self.bn(self.conv1(x)))
+            y = self.relu(self.bn(self.conv2(y)))
+            y = self.bn(self.conv3(y))
+            return self.relu(y + self.bn(self.skip(x)))
+        
+    class UpSampleBlock(nn.Module):
+        def __init__(self, in_channels, out_channels, kernel_size=3, stride=1, output_padding=1):
+            super().__init__()
+            self.stride = stride
+            padding = (kernel_size - 1) // 2
+            self.conv1 = nn.ConvTranspose2d(in_channels, out_channels, kernel_size, stride, padding, output_padding)
+            self.conv2 = nn.ConvTranspose2d(out_channels, out_channels, kernel_size, 1, padding)
+            self.conv3 = nn.ConvTranspose2d(out_channels, out_channels, kernel_size, 1, padding)
+            self.bn = nn.BatchNorm2d(out_channels)
+            self.skip = nn.Conv2d(in_channels, out_channels, 1)
+            self.relu = nn.ReLU()
+
+        def forward(self, x):
+            y = self.relu(self.bn(self.conv1(x)))
+            y = self.relu(self.bn(self.conv2(y)))
+            y = self.bn(self.conv3(y))
+            x = self.skip(nn.functional.interpolate(x, scale_factor=self.stride))
+            return self.relu(y + self.bn(self.skip(x)))
+
     def __init__(
         self,
         n_waypoints: int = 3,
