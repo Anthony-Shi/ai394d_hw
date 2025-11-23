@@ -16,19 +16,19 @@ class MLPPlanner(nn.Module):
             self.linear = nn.Linear(in_channels, out_channels)
             self.norm = nn.LayerNorm(out_channels)
             self.relu = nn.ReLU()
+            self.dropout = nn.Dropout(0.3)
             if in_channels != out_channels:
                 self.skip = nn.Linear(in_channels, out_channels)
             else:
                 self.skip = nn.Identity()
         
         def forward(self, x):
-            return self.relu(self.norm(self.linear(x))) + self.skip(x)
+            y = self.relu(self.norm(self.linear(x)))
+            return self.dropout(y) + self.skip(x)
 
 
     def __init__(
         self,
-        input_mean,
-        input_std,
         n_track: int = 10,
         n_waypoints: int = 3,
     ):
@@ -45,11 +45,9 @@ class MLPPlanner(nn.Module):
 
         self.network = nn.Sequential(
             nn.Flatten(),
-            nn.BatchNorm1d(self.n_track*2*2),
+            nn.LayerNorm(self.n_track*2*2),
             self.Block(c, 256),
-            self.Block(256, 256),
             self.Block(256, 128),
-            self.Block(128, 128),
             nn.Linear(128, self.n_waypoints*2),
         )
 
@@ -158,6 +156,16 @@ class CNNPlanner(nn.Module):
 
         self.n_waypoints = n_waypoints
 
+        c_in, c_out = 3, 32
+        self.convnet = []
+        for _ in range(3):
+            self.convnet.append(self.DownSampleBlock(c_in, c_out, stride=2))
+            c_in = c_out
+            c_out *= 2
+        
+        self.pool = nn.AdaptiveAvgPool2d(1)
+        self.linear = nn.Linear(c_out, n_waypoints*2)
+
     def forward(self, image: torch.Tensor, **kwargs) -> torch.Tensor:
         """
         Args:
@@ -168,6 +176,8 @@ class CNNPlanner(nn.Module):
         """
         x = image
         x = (x - self.input_mean[None, :, None, None]) / self.input_std[None, :, None, None]
+        x = self.linear(self.pool(self.convnet(x)))
+        return x.view(-1, self.n_waypoints, 2)
 
 
 
