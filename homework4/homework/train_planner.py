@@ -92,7 +92,7 @@ def train(
 
             optim.zero_grad()
             waypoints_norm = (waypoints - input_mean) / input_std
-            loss = (out - waypoints).abs()
+            loss = (out - waypoints_norm).abs()
             loss_masked = loss * waypoints_mask[..., None]
             n = waypoints_mask.sum()
             longitudinal_loss = loss_masked[..., 0].sum() / n
@@ -101,7 +101,7 @@ def train(
             l1_loss.backward()
             optim.step()
             
-            train_metric.add(out, waypoints, waypoints_mask)
+            train_metric.add(out, waypoints_norm, waypoints_mask)
 
             global_step += 1
         
