@@ -53,22 +53,21 @@ def train(
     global_step = 0
 
     # normalize input data
-    global_sum, global_sq_sum = torch.zeros(2), torch.zeros(2)
+    global_sum, global_sq_sum = torch.zeros(2, device=device), torch.zeros(2, device=device)
+    n = 0
     for sample in train_data:
-        image = sample["image"] # (b, c, h, w)
-        track_left = sample["track_left"] # (b, 10, 2)
-        track_right = sample["track_right"] # (b, 10, 2)
-        waypoints = sample["waypoints"] # (b, 3, 2)
-        waypoints_mask = sample["waypoints_mask"] # (b, 3)
-        track_left, track_right, waypoints, waypoints_mask, image = track_left.to(device), track_right.to(device), waypoints.to(device), waypoints_mask.to(device), image.to(device)
+        image = sample["image"].to(device) # (b, c, h, w)
+        track_left = sample["track_left"].to(device) # (b, 10, 2)
+        track_right = sample["track_right"].to(device) # (b, 10, 2)
+        waypoints = sample["waypoints"].to(device) # (b, 3, 2)
 
         points = torch.cat((track_left.reshape(-1, 2),
                     track_right.reshape(-1, 2),
                     waypoints.reshape(-1, 2)))
         global_sum += points.sum(dim=0)
         global_sq_sum += (points ** 2).sum(dim=0)
+        n += points.shape[0]
     
-    n = len(train_data.dataset)
     input_mean = global_sum / n
     input_std = ((global_sq_sum / n) - (input_mean ** 2)).sqrt()
     print(input_mean, input_std)
@@ -79,12 +78,11 @@ def train(
         model.train()
 
         for sample in train_data:
-            image = sample["image"] # (b, c, h, w)
-            track_left = sample["track_left"] # (b, 10, 2)
-            track_right = sample["track_right"] # (b, 10, 2)
-            waypoints = sample["waypoints"] # (b, 3, 2)
-            waypoints_mask = sample["waypoints_mask"] # (b, 3)
-            track_left, track_right, waypoints, waypoints_mask, image = track_left.to(device), track_right.to(device), waypoints.to(device), waypoints_mask.to(device), image.to(device)
+            image = sample["image"].to(device) # (b, c, h, w)
+            track_left = sample["track_left"].to(device) # (b, 10, 2)
+            track_right = sample["track_right"].to(device) # (b, 10, 2)
+            waypoints = sample["waypoints"].to(device) # (b, 3, 2)
+            waypoints_mask = sample["waypoints_mask"].to(device) # (b, 3)
 
             track_left_norm, track_right_norm = (track_left - input_mean) / input_std, (track_right - input_mean) / input_std
             if model_name == "mlp_planner":
@@ -111,11 +109,10 @@ def train(
             model.eval()
 
             for sample in val_data:
-                track_left = sample["track_left"]
-                track_right = sample["track_right"]
-                waypoints = sample["waypoints"]
-                waypoints_mask = sample["waypoints_mask"]
-                track_left, track_right, waypoints, waypoints_mask = track_left.to(device), track_right.to(device), waypoints.to(device), waypoints_mask.to(device)
+                track_left = sample["track_left"].to(device)
+                track_right = sample["track_right"].to(device)
+                waypoints = sample["waypoints"].to(device)
+                waypoints_mask = sample["waypoints_mask"].to(device)
                 
                 track_left_norm, track_right_norm = (track_left - input_mean) / input_std, (track_right - input_mean) / input_std
 
