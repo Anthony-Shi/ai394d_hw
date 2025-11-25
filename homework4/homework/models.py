@@ -29,10 +29,6 @@ class MLPPlanner(nn.Module):
 
     def __init__(
         self,
-        input_mean,
-        input_std,
-        output_mean,
-        output_std,
         n_track: int = 10,
         n_waypoints: int = 3,
     ):
@@ -79,8 +75,6 @@ class MLPPlanner(nn.Module):
         Returns:
             torch.Tensor: future waypoints with shape (b, n_waypoints, 2)
         """
-        print(self.input_mean, self.input_std)
-        print(self.output_mean, self.output_std)
         track_left_norm = (track_left - self.input_mean) / self.input_std
         track_right_norm = (track_right - self.input_mean) / self.input_std
         x = torch.cat([track_left_norm, track_right_norm], dim=1)
