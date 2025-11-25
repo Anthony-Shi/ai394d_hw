@@ -53,24 +53,33 @@ def train(
     global_step = 0
 
     # normalize input data
-    global_sum, global_sq_sum = torch.zeros(2, device=device), torch.zeros(2, device=device)
-    n = 0
+    input_sum, input_sq_sum = torch.zeros(2, device=device), torch.zeros(2, device=device)
+    output_sum, output_sq_sum = torch.zeros(2, device=device), torch.zeros(2, device=device)
+    n_inputs, n_outputs = 0, 0
     for sample in train_data:
         image = sample["image"].to(device) # (b, c, h, w)
         track_left = sample["track_left"].to(device) # (b, 10, 2)
         track_right = sample["track_right"].to(device) # (b, 10, 2)
         waypoints = sample["waypoints"].to(device) # (b, 3, 2)
+        waypoints_mask = sample["waypoints_mask"].to(device) # (b, 3)
 
-        points = torch.cat((track_left.reshape(-1, 2),
-                    track_right.reshape(-1, 2),
-                    waypoints.reshape(-1, 2)))
-        global_sum += points.sum(dim=0)
-        global_sq_sum += (points ** 2).sum(dim=0)
-        n += points.shape[0]
+        input_points = torch.cat((track_left.reshape(-1, 2),
+                                  track_right.reshape(-1, 2)))
+        output_points = waypoints[waypoints_mask.bool()].reshape(-1, 2)
+
+        input_sum += input_points.sum(dim=0)
+        input_sq_sum += (input_points ** 2).sum(dim=0)
+        n_inputs += input_points.shape[0]
+        output_sum += output_points.sum(dim=0)
+        output_sq_sum += (output_points ** 2).sum(dim=0)
+        n_outputs += output_points.shape[0]
     
-    input_mean = global_sum / n
-    input_std = ((global_sq_sum / n) - (input_mean ** 2)).sqrt()
+    input_mean = input_sum / n_inputs
+    input_std = ((input_sq_sum / n_inputs) - (input_mean ** 2)).sqrt()
     print(input_mean, input_std)
+    output_mean = output_sum / n_outputs
+    output_std = ((output_sq_sum / n_outputs) - (output_mean ** 2)).sqrt()
+    print(output_mean, output_std)
 
     for epoch in range(num_epoch):
         train_metric.reset()
@@ -91,8 +100,8 @@ def train(
                 out = model(image)
 
             optim.zero_grad()
-            waypoints_norm = (waypoints - input_mean) / input_std
-            loss = (out - waypoints).abs()
+            waypoints_norm = (waypoints - output_mean) / output_std
+            loss = (out - waypoints_norm).abs()
             loss_masked = loss * waypoints_mask[..., None]
             n = waypoints_mask.sum()
             longitudinal_loss = loss_masked[..., 0].sum() / n
