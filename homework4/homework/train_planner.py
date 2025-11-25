@@ -52,6 +52,24 @@ def train(
 
     global_step = 0
 
+    # normalize input data
+    global_sum = torch.zeros(2)
+    for sample in train_data:
+        image = sample["image"] # (b, c, h, w)
+        track_left = sample["track_left"] # (b, 10, 2)
+        track_right = sample["track_right"] # (b, 10, 2)
+        waypoints = sample["waypoints"] # (b, 3, 2)
+        waypoints_mask = sample["waypoints_mask"] # (b, 3)
+        track_left, track_right, waypoints, waypoints_mask, image = track_left.to(device), track_right.to(device), waypoints.to(device), waypoints_mask.to(device), image.to(device)
+
+        points = torch.cat((track_left.reshape(-1, 2),
+                    track_right.reshape(-1, 2),
+                    waypoints.reshape(-1, 2)))
+        global_sum += points.sum(dim=0)
+    input_mean = global_sum.mean(dim=0)
+    input_std = global_sum.std(dim=0)
+    print(input_mean, input_std)
+
     for epoch in range(num_epoch):
         train_metric.reset()
 
@@ -65,14 +83,7 @@ def train(
             waypoints_mask = sample["waypoints_mask"] # (b, 3)
             track_left, track_right, waypoints, waypoints_mask, image = track_left.to(device), track_right.to(device), waypoints.to(device), waypoints_mask.to(device), image.to(device)
 
-            points = torch.cat((track_left.reshape(-1, 2),
-                       track_right.reshape(-1, 2),
-                       waypoints.reshape(-1, 2)))
-            mean = points.mean(dim=0)
-            std = points.std(dim=0)
-            print(points.shape, mean.shape, std.shape)
-
-            track_left_norm, track_right_norm = (track_left - mean) / std, (track_right - mean) / std
+            track_left_norm, track_right_norm = (track_left - input_mean) / input_std, (track_right - input_mean) / input_std
             if model_name == "mlp_planner":
                 out = model(track_left_norm, track_right_norm)
             elif model_name == "cnn_planner":
@@ -102,17 +113,11 @@ def train(
                 waypoints = sample["waypoints"]
                 waypoints_mask = sample["waypoints_mask"]
                 track_left, track_right, waypoints, waypoints_mask = track_left.to(device), track_right.to(device), waypoints.to(device), waypoints_mask.to(device)
-
-                points = torch.cat((track_left.reshape(-1, 2),
-                       track_right.reshape(-1, 2),
-                       waypoints.reshape(-1, 2)))
                 
-                mean = points.mean(dim=0)
-                std = points.std(dim=0)
-                track_left_norm, track_right_norm = (track_left - mean) / std, (track_right - mean) / std
+                track_left_norm, track_right_norm = (track_left - input_mean) / input_std, (track_right - input_mean) / input_std
 
                 pred_norm = model(track_left_norm, track_right_norm)
-                pred = (pred_norm * std) + mean
+                pred = (pred_norm * input_std) + input_mean
                 val_metric.add(pred, waypoints, waypoints_mask)
 
                 global_step += 1
