@@ -37,13 +37,13 @@ def train(
     log_dir = Path(exp_dir) / f"{model_name}_{datetime.now().strftime('%m%d_%H%M%S')}"
     logger = tb.SummaryWriter(log_dir)
 
-    # set up planner metric
-    train_metric = PlannerMetric()
-    val_metric = PlannerMetric()
-
     model = load_model(model_name, **kwargs)
     model = model.to(device)
     model.train()
+
+    # set up planner metric
+    train_metric = PlannerMetric()
+    val_metric = PlannerMetric()
 
     train_data = load_data("drive_data/train", transform_pipeline=transform_pipeline, shuffle=True, batch_size=batch_size, num_workers=num_workers)
     val_data = load_data("drive_data/val", transform_pipeline=transform_pipeline, shuffle=False)
@@ -51,7 +51,7 @@ def train(
     optim = torch.optim.SGD(model.parameters(), lr=lr, momentum=0.9)
 
     global_step = 0
-
+    
     # normalize input data
     input_sum, input_sq_sum = torch.zeros(2, device=device), torch.zeros(2, device=device)
     output_sum, output_sq_sum = torch.zeros(2, device=device), torch.zeros(2, device=device)
@@ -81,6 +81,11 @@ def train(
     output_std = ((output_sq_sum / n_outputs) - (output_mean ** 2)).sqrt()
     print(output_mean, output_std)
 
+    model.input_mean.copy_(input_mean)
+    model.input_std.copy_(input_std)
+    model.output_mean.copy_(output_mean)
+    model.output_std.copy_(output_std)
+
     for epoch in range(num_epoch):
         train_metric.reset()
 
@@ -93,15 +98,13 @@ def train(
             waypoints = sample["waypoints"].to(device) # (b, 3, 2)
             waypoints_mask = sample["waypoints_mask"].to(device) # (b, 3)
 
-            track_left_norm, track_right_norm = (track_left - input_mean) / input_std, (track_right - input_mean) / input_std
             if model_name == "mlp_planner":
-                out = model(track_left_norm, track_right_norm)
+                out = model(track_left, track_right)
             elif model_name == "cnn_planner":
                 out = model(image)
 
             optim.zero_grad()
-            waypoints_norm = (waypoints - output_mean) / output_std
-            loss = (out - waypoints_norm).abs()
+            loss = (out - waypoints).abs()
             loss_masked = loss * waypoints_mask[..., None]
             n = waypoints_mask.sum()
             longitudinal_loss = loss_masked[..., 0].sum() / n
@@ -110,7 +113,7 @@ def train(
             l1_loss.backward()
             optim.step()
             
-            train_metric.add(out, waypoints_norm, waypoints_mask)
+            train_metric.add(out, waypoints, waypoints_mask)
 
             global_step += 1
         
@@ -123,10 +126,7 @@ def train(
                 waypoints = sample["waypoints"].to(device)
                 waypoints_mask = sample["waypoints_mask"].to(device)
                 
-                track_left_norm, track_right_norm = (track_left - input_mean) / input_std, (track_right - input_mean) / input_std
-
-                pred_norm = model(track_left_norm, track_right_norm)
-                pred = (pred_norm * input_std) + input_mean
+                pred = model(track_left, track_right)
                 val_metric.add(pred, waypoints, waypoints_mask)
 
                 global_step += 1

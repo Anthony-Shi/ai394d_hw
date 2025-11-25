@@ -29,6 +29,10 @@ class MLPPlanner(nn.Module):
 
     def __init__(
         self,
+        input_mean,
+        input_std,
+        output_mean,
+        output_std,
         n_track: int = 10,
         n_waypoints: int = 3,
     ):
@@ -38,6 +42,11 @@ class MLPPlanner(nn.Module):
             n_waypoints (int): number of waypoints to predict
         """
         super().__init__()
+
+        self.register_buffer("input_mean", torch.zeros(2))
+        self.register_buffer("input_std", torch.zeros(2))
+        self.register_buffer("output_mean", torch.zeros(2))
+        self.register_buffer("output_std", torch.zeros(2))
 
         self.n_track = n_track
         self.n_waypoints = n_waypoints
@@ -70,8 +79,13 @@ class MLPPlanner(nn.Module):
         Returns:
             torch.Tensor: future waypoints with shape (b, n_waypoints, 2)
         """
-        x = torch.cat([track_left, track_right], dim=1)
-        return self.network(x).view(-1, self.n_waypoints, 2)
+        print(self.input_mean, self.input_std)
+        print(self.output_mean, self.output_std)
+        track_left_norm = (track_left - self.input_mean) / self.input_std
+        track_right_norm = (track_right - self.input_mean) / self.input_std
+        x = torch.cat([track_left_norm, track_right_norm], dim=1)
+        y = self.network(x).view(-1, self.n_waypoints, 2)
+        return y * self.output_std + self.output_mean
 
 
 class TransformerPlanner(nn.Module):
