@@ -53,7 +53,7 @@ def train(
     global_step = 0
 
     # normalize input data
-    global_sum = torch.zeros(2)
+    global_sum, global_sq_sum = torch.zeros(2), torch.zeros(2)
     for sample in train_data:
         image = sample["image"] # (b, c, h, w)
         track_left = sample["track_left"] # (b, 10, 2)
@@ -66,8 +66,11 @@ def train(
                     track_right.reshape(-1, 2),
                     waypoints.reshape(-1, 2)))
         global_sum += points.sum(dim=0)
-    input_mean = global_sum.mean(dim=0)
-    input_std = global_sum.std(dim=0)
+        global_sq_sum += (points ** 2).sum(dim=0)
+    
+    n = len(train_data.dataset)
+    input_mean = global_sum / n
+    input_std = ((global_sq_sum / n) - (input_mean ** 2)).sqrt()
     print(input_mean, input_std)
 
     for epoch in range(num_epoch):
