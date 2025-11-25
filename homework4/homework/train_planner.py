@@ -91,12 +91,12 @@ def train(
                 out = model(image)
 
             optim.zero_grad()
+            waypoints_norm = (waypoints - input_mean) / input_std
             loss = (out - waypoints).abs()
             loss_masked = loss * waypoints_mask[..., None]
-            loss_masked_norm = (loss_masked - mean) / std
             n = waypoints_mask.sum()
-            longitudinal_loss = loss_masked_norm[..., 0].sum() / n
-            lateral_loss = loss_masked_norm[..., 1].sum() / n
+            longitudinal_loss = loss_masked[..., 0].sum() / n
+            lateral_loss = loss_masked[..., 1].sum() / n
             l1_loss = longitudinal_loss + lateral_loss
             l1_loss.backward()
             optim.step()
