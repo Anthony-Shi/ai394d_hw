@@ -65,21 +65,26 @@ def train(
             waypoints_mask = sample["waypoints_mask"] # (b, 3)
             track_left, track_right, waypoints, waypoints_mask, image = track_left.to(device), track_right.to(device), waypoints.to(device), waypoints_mask.to(device), image.to(device)
 
-            waypoints_mean = waypoints.mean(dim=(0,1))
-            waypoints_std  = waypoints.std(dim=(0,1))
-            waypoints_norm = (waypoints - waypoints_mean) / waypoints_std
+            points = torch.cat((track_left.reshape(-1, 2),
+                       track_right.reshape(-1, 2),
+                       waypoints.reshape(-1, 2)))
+            mean = points.mean(dim=0)
+            std = points.std(dim=0)
+            print(points.shape, mean.shape, std.shape)
 
+            track_left_norm, track_right_norm = (track_left - mean) / std, (track_right - mean) / std
             if model_name == "mlp_planner":
-                out = model(track_left, track_right)
+                out = model(track_left_norm, track_right_norm)
             elif model_name == "cnn_planner":
                 out = model(image)
 
             optim.zero_grad()
             loss = (out - waypoints).abs()
-            n = waypoints_mask.sum()
             loss_masked = loss * waypoints_mask[..., None]
-            longitudinal_loss = loss_masked[..., 0].sum() / n
-            lateral_loss = loss_masked[..., 1].sum() / n
+            loss_masked_norm = (loss_masked - mean) / std
+            n = waypoints_mask.sum()
+            longitudinal_loss = loss_masked_norm[..., 0].sum() / n
+            lateral_loss = loss_masked_norm[..., 1].sum() / n
             l1_loss = longitudinal_loss + lateral_loss
             l1_loss.backward()
             optim.step()
@@ -98,7 +103,16 @@ def train(
                 waypoints_mask = sample["waypoints_mask"]
                 track_left, track_right, waypoints, waypoints_mask = track_left.to(device), track_right.to(device), waypoints.to(device), waypoints_mask.to(device)
 
-                pred = model(track_left, track_right)
+                points = torch.cat((track_left.reshape(-1, 2),
+                       track_right.reshape(-1, 2),
+                       waypoints.reshape(-1, 2)))
+                
+                mean = points.mean(dim=0)
+                std = points.std(dim=0)
+                track_left_norm, track_right_norm = (track_left - mean) / std, (track_right - mean) / std
+
+                pred_norm = model(track_left_norm, track_right_norm)
+                pred = (pred_norm * std) + mean
                 val_metric.add(pred, waypoints, waypoints_mask)
 
                 global_step += 1
