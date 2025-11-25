@@ -110,7 +110,7 @@ def train(
             l1_loss.backward()
             optim.step()
             
-            train_metric.add(out, waypoints, waypoints_mask)
+            train_metric.add(out, waypoints_norm, waypoints_mask)
 
             global_step += 1
         
