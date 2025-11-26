@@ -53,9 +53,8 @@ class RoadDataset(Dataset):
             xform = road_transforms.Compose(
                 [
                     road_transforms.ImageLoader(self.episode_path),
+                    road_transforms.TrackProcessor(self.track),
                     road_transforms.DepthLoader(self.episode_path),
-                    road_transforms.EgoTrackProcessor(self.track),
-                    
                     road_transforms.RandomHorizontalFlip(p=0.5),
                 ]
             )
