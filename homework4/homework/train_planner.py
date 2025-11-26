@@ -64,16 +64,16 @@ def train(
         model.train()
 
         for sample in train_data:
-            image = sample["image"].to(device) # (b, c, h, w)
-            track_left = sample["track_left"].to(device) # (b, 10, 2)
-            track_right = sample["track_right"].to(device) # (b, 10, 2)
-            waypoints = sample["waypoints"].to(device) # (b, 3, 2)
-            waypoints_mask = sample["waypoints_mask"].to(device) # (b, 3)
-
             if model_name == "mlp_planner":
+                track_left = sample["track_left"].to(device) # (b, 10, 2)
+                track_right = sample["track_right"].to(device) # (b, 10, 2)
                 out = model(track_left, track_right)
             elif model_name == "cnn_planner":
+                image = sample["image"].to(device) # (b, c, h, w)
                 out = model(image)
+                
+            waypoints = sample["waypoints"].to(device) # (b, 3, 2)
+            waypoints_mask = sample["waypoints_mask"].to(device) # (b, 3)
 
             optim.zero_grad()
             loss = (out - waypoints).abs()
@@ -93,12 +93,17 @@ def train(
             model.eval()
 
             for sample in val_data:
-                track_left = sample["track_left"].to(device)
-                track_right = sample["track_right"].to(device)
+                if model_name == "mlp_planner":
+                    track_left = sample["track_left"].to(device) # (b, 10, 2)
+                    track_right = sample["track_right"].to(device) # (b, 10, 2)
+                    pred = model(track_left, track_right)
+                elif model_name == "cnn_planner":
+                    image = sample["image"].to(device) # (b, c, h, w)
+                    pred = model(image)
+
                 waypoints = sample["waypoints"].to(device)
                 waypoints_mask = sample["waypoints_mask"].to(device)
                 
-                pred = model(track_left, track_right)
                 val_metric.add(pred, waypoints, waypoints_mask)
 
                 global_step += 1
@@ -194,7 +199,7 @@ def output_norm(
 ):
     # normalize input data
     output_sum, output_sq_sum = torch.zeros(2, device=device), torch.zeros(2, device=device)
-    n_outputs = 0, 0
+    n_outputs = 0
     for sample in train_data:
         waypoints = sample["waypoints"].to(device) # (b, 3, 2)
         waypoints_mask = sample["waypoints_mask"].to(device) # (b, 3)

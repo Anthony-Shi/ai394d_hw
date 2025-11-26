@@ -164,6 +164,11 @@ class CNNPlanner(nn.Module):
 
         self.n_waypoints = n_waypoints
 
+        self.register_buffer("input_mean", torch.zeros(3))
+        self.register_buffer("input_std", torch.zeros(3))
+        self.register_buffer("output_mean", torch.zeros(2))
+        self.register_buffer("output_std", torch.zeros(2))
+
         c_in, c_out = 3, 32
         conv_layers = []
         for _ in range(3):
