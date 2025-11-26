@@ -50,9 +50,9 @@ def train(
     val_data = load_data("drive_data/val", transform_pipeline=transform_pipeline, shuffle=False)
 
     if model_name == "mlp_planner":
-        mlp_norm(train_metric, model, device)
+        mlp_norm(train_data, model, device)
     elif model_name == "cnn_planner":
-        cnn_norm(train_metric, model, device)
+        cnn_norm(train_data, model, device)
 
     optim = torch.optim.SGD(model.parameters(), lr=lr, momentum=0.9)
 
