@@ -182,11 +182,11 @@ class CNNPlanner(nn.Module):
         Returns:
             torch.FloatTensor: future waypoints with shape (b, n, 2)
         """
-        x = image
-        x = self.pool(self.conv_net(x))
+        image_norm = (image - self.input_mean[None, :, None, None]) / self.input_std[None, :, None, None]
+        x = self.pool(self.conv_net(image_norm))
         x = self.linear(x.squeeze())
-        return x.view(-1, self.n_waypoints, 2)
-
+        y = x.view(-1, self.n_waypoints, 2)
+        return y * self.output_std + self.output_mean
 
 
 MODEL_FACTORY = {

@@ -10,6 +10,7 @@ from .models import load_model, save_model
 from .datasets.road_dataset import load_data
 from .metrics import PlannerMetric
 
+
 def train(
     exp_dir: str = "logs",
     transform_pipeline: str = "default",
@@ -48,43 +49,14 @@ def train(
     train_data = load_data("drive_data/train", transform_pipeline=transform_pipeline, shuffle=True, batch_size=batch_size, num_workers=num_workers)
     val_data = load_data("drive_data/val", transform_pipeline=transform_pipeline, shuffle=False)
 
+    if model_name == "mlp_planner":
+        mlp_norm(train_metric, model, device)
+    elif model_name == "cnn_planner":
+        cnn_norm(train_metric, model, device)
+
     optim = torch.optim.SGD(model.parameters(), lr=lr, momentum=0.9)
 
     global_step = 0
-    
-    # normalize input data
-    input_sum, input_sq_sum = torch.zeros(2, device=device), torch.zeros(2, device=device)
-    output_sum, output_sq_sum = torch.zeros(2, device=device), torch.zeros(2, device=device)
-    n_inputs, n_outputs = 0, 0
-    for sample in train_data:
-        image = sample["image"].to(device) # (b, c, h, w)
-        track_left = sample["track_left"].to(device) # (b, 10, 2)
-        track_right = sample["track_right"].to(device) # (b, 10, 2)
-        waypoints = sample["waypoints"].to(device) # (b, 3, 2)
-        waypoints_mask = sample["waypoints_mask"].to(device) # (b, 3)
-
-        input_points = torch.cat((track_left.reshape(-1, 2),
-                                  track_right.reshape(-1, 2)))
-        output_points = waypoints[waypoints_mask.bool()].reshape(-1, 2)
-
-        input_sum += input_points.sum(dim=0)
-        input_sq_sum += (input_points ** 2).sum(dim=0)
-        n_inputs += input_points.shape[0]
-        output_sum += output_points.sum(dim=0)
-        output_sq_sum += (output_points ** 2).sum(dim=0)
-        n_outputs += output_points.shape[0]
-    
-    input_mean = input_sum / n_inputs
-    input_std = ((input_sq_sum / n_inputs) - (input_mean ** 2)).sqrt()
-    print(input_mean, input_std)
-    output_mean = output_sum / n_outputs
-    output_std = ((output_sq_sum / n_outputs) - (output_mean ** 2)).sqrt()
-    print(output_mean, output_std)
-
-    model.input_mean.copy_(input_mean)
-    model.input_std.copy_(input_std)
-    model.output_mean.copy_(output_mean)
-    model.output_std.copy_(output_std)
 
     for epoch in range(num_epoch):
         train_metric.reset()
@@ -161,6 +133,84 @@ def train(
     torch.save(model.state_dict(), log_dir / f"{model_name}.th")
     print(f"Model saved to {log_dir / f'{model_name}.th'}")
 
+
+def mlp_norm(
+    train_data,
+    model: torch.nn.Module,
+    device: torch.device,
+):
+    # normalize input data
+    input_sum, input_sq_sum = torch.zeros(2, device=device), torch.zeros(2, device=device)
+    n_inputs = 0
+    for sample in train_data:
+        track_left = sample["track_left"].to(device) # (b, 10, 2)
+        track_right = sample["track_right"].to(device) # (b, 10, 2)
+
+        input_points = torch.cat((track_left.reshape(-1, 2),
+                                  track_right.reshape(-1, 2)))
+
+        input_sum += input_points.sum(dim=0)
+        input_sq_sum += (input_points ** 2).sum(dim=0)
+        n_inputs += input_points.shape[0]
+    
+    input_mean = input_sum / n_inputs
+    input_std = ((input_sq_sum / n_inputs) - (input_mean ** 2)).sqrt()
+    print(input_mean, input_std)
+
+    model.input_mean.copy_(input_mean) # (2,)
+    model.input_std.copy_(input_std) # (2,)
+    
+    output_norm(train_data, model, device)
+
+def cnn_norm(
+    train_data,
+    model: torch.nn.Module,
+    device: torch.device,
+):
+    # normalize input data
+    input_sum, input_sq_sum = torch.zeros(3, device=device), torch.zeros(3, device=device)
+    n_inputs = 0
+    for sample in train_data:
+        image = sample["image"].to(device) # (b, c, h, w)
+        b, h, w = image.shape[0], image.shape[2], image.shape[3]
+        input_sum += image.sum(dim=[0, 2, 3])
+        input_sq_sum += (image ** 2).sum(dim=[0, 2, 3])
+        n_inputs += b * h * w
+    
+    input_mean = input_sum / n_inputs
+    input_std = ((input_sq_sum / n_inputs) - (input_mean ** 2)).sqrt()
+    print(input_mean, input_std)
+
+    model.input_mean.copy_(input_mean) # (3,)
+    model.input_std.copy_(input_std) # (3,)
+    
+    output_norm(train_data, model, device)
+
+
+def output_norm(
+    train_data,
+    model: torch.nn.Module,
+    device: torch.device,
+):
+    # normalize input data
+    output_sum, output_sq_sum = torch.zeros(2, device=device), torch.zeros(2, device=device)
+    n_outputs = 0, 0
+    for sample in train_data:
+        waypoints = sample["waypoints"].to(device) # (b, 3, 2)
+        waypoints_mask = sample["waypoints_mask"].to(device) # (b, 3)
+
+        output_points = waypoints[waypoints_mask.bool()].reshape(-1, 2)
+
+        output_sum += output_points.sum(dim=0)
+        output_sq_sum += (output_points ** 2).sum(dim=0)
+        n_outputs += output_points.shape[0]
+    
+    output_mean = output_sum / n_outputs
+    output_std = ((output_sq_sum / n_outputs) - (output_mean ** 2)).sqrt()
+    print(output_mean, output_std)
+
+    model.output_mean.copy_(output_mean)
+    model.output_std.copy_(output_std)
 
 
 if __name__ == "__main__":
