@@ -143,7 +143,7 @@ class TransformerPlanner(nn.Module):
             [PerceiverBlock(d_model, 8) for _ in range(2)]
         )
 
-        self.query = nn.Parameter(torch.rand(128, d_model))
+        self.query = nn.Parameter(torch.rand(self.n_waypoints, d_model))
         self.decoder = TransformerLayer(d_model, 8)
 
         self.linear = nn.Sequential(
@@ -181,8 +181,8 @@ class TransformerPlanner(nn.Module):
 
         query = self.query.expand(x.shape[0], -1, -1)
         x = self.decoder(query, x)
-        y = self.linear(y).view(-1, self.n_waypoints, 2)
-        return y * self.output_std + self.output_mean
+        x = self.linear(x).view(-1, self.n_waypoints, 2)
+        return x * self.output_std + self.output_mean
 
 
 class CNNPlanner(nn.Module):
