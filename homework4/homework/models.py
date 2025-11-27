@@ -98,7 +98,7 @@ class TransformerLayer(nn.Module):
     def forward(self, q, x, attn_mask=None):
         x_norm = self.in_norm(x)
         q_norm = self.in_norm(q)
-        x = x + self.attn(q_norm, x_norm, x_norm, attn_mask=attn_mask)
+        x = x + self.attn(q_norm, x_norm, x_norm, attn_mask=attn_mask)[0]
         x = x + self.mlp(self.mlp_norm(x))
         return x
 
