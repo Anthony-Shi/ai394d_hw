@@ -83,9 +83,8 @@ class MLPPlanner(nn.Module):
 
 
 class TransformerLayer(nn.Module):
-    def __init__(self, embed_dim, num_heads, max_len=128):
+    def __init__(self, embed_dim, num_heads):
         super().__init__()
-        self.rel_pos = nn.Parameter(torch.randn(num_heads, max_len))
         self.attn = nn.MultiheadAttention(embed_dim, num_heads, dropout=0.3, batch_first=True)
         self.mlp = nn.Sequential(
             nn.Linear(embed_dim, embed_dim * 4),
@@ -98,7 +97,7 @@ class TransformerLayer(nn.Module):
     def forward(self, q, x, attn_mask=None):
         x_norm = self.in_norm(x)
         q_norm = self.in_norm(q)
-        x = x + self.attn(q_norm, x_norm, x_norm, attn_mask=attn_mask)[0]
+        x = q + self.attn(q_norm, x_norm, x_norm, attn_mask=attn_mask)[0]
         x = x + self.mlp(self.mlp_norm(x))
         return x
 
