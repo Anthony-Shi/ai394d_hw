@@ -82,6 +82,39 @@ class MLPPlanner(nn.Module):
         return y * self.output_std + self.output_mean
 
 
+class TransformerLayer(nn.Module):
+    def __init__(self, embed_dim, num_heads, max_len=128):
+        super().__init__()
+        self.rel_pos = nn.Parameter(torch.randn(num_heads, max_len))
+        self.attn = nn.MultiheadAttention(embed_dim, num_heads, dropout=0.3, batch_first=True)
+        self.mlp = nn.Sequential(
+            nn.Linear(embed_dim, embed_dim * 4),
+            nn.ReLU(),
+            nn.Linear(embed_dim * 4, embed_dim),
+        )
+        self.in_norm = nn.LayerNorm(embed_dim)
+        self.mlp_norm = nn.LayerNorm(embed_dim)
+
+    def forward(self, q, x, attn_mask=None):
+        x_norm = self.in_norm(x)
+        q_norm = self.in_norm(q)
+        x = x + self.attn(q_norm, x_norm, x_norm, attn_mask=attn_mask)
+        x = x + self.mlp(self.mlp_norm(x))
+        return x
+
+
+class PerceiverBlock(nn.Module):
+    def __init__(self, embed_dim, num_heads):
+        super().__init__()
+        self.encoder = TransformerLayer(embed_dim, num_heads)
+        self.processor = TransformerLayer(embed_dim, num_heads)
+
+    def forward(self, q, x):
+        x = self.cross_attn(q, x)
+        x = self.self_attn(x, x)
+        return x
+    
+
 class TransformerPlanner(nn.Module):
     def __init__(
         self,
@@ -91,10 +124,33 @@ class TransformerPlanner(nn.Module):
     ):
         super().__init__()
 
+        self.register_buffer("input_mean", torch.zeros(2))
+        self.register_buffer("input_std", torch.zeros(2))
+        self.register_buffer("output_mean", torch.zeros(2))
+        self.register_buffer("output_std", torch.zeros(2))
+
         self.n_track = n_track
         self.n_waypoints = n_waypoints
 
-        self.query_embed = nn.Embedding(n_waypoints, d_model)
+        self.latent = nn.Parameter(nn.init.trunc_normal_(
+            torch.zeros(128, d_model),
+            0,
+            0.2,
+            -1,
+            1,
+        ))
+        self.embed = nn.Embedding(128, d_model)
+        self.latent_block = nn.Sequential(
+            *[PerceiverBlock(d_model, 8) for _ in range(2)]
+        )
+
+        self.query = nn.Parameter(torch.rand(128, d_model))
+        self.decoder = TransformerLayer(d_model, 8)
+
+        self.linear = nn.Sequential(
+            nn.LayerNorm(d_model),
+            nn.Linear(d_model, self.n_waypoints*2),
+        )
 
     def forward(
         self,
@@ -115,7 +171,17 @@ class TransformerPlanner(nn.Module):
         Returns:
             torch.Tensor: future waypoints with shape (b, n_waypoints, 2)
         """
-        raise NotImplementedError
+        track_left_norm = (track_left - self.input_mean) / self.input_std
+        track_right_norm = (track_right - self.input_mean) / self.input_std
+        x = torch.cat([track_left_norm, track_right_norm], dim=1)
+
+        latent = self.latent.expand(x.shape[0], -1, -1)
+        x = self.latent_block(latent, x)
+
+        query = self.query.expand(x.shape[0], -1, -1)
+        x = self.decoder(query, x)
+        y = self.linear(y).view(-1, self.n_waypoints, 2)
+        return y * self.output_std + self.output_mean
 
 
 class CNNPlanner(nn.Module):
