@@ -140,8 +140,8 @@ class TransformerPlanner(nn.Module):
             1,
         ))
         self.embed = nn.Embedding(128, d_model)
-        self.latent_block = nn.Sequential(
-            *[PerceiverBlock(d_model, 8) for _ in range(2)]
+        self.latent_block = nn.ModuleList(
+            [PerceiverBlock(d_model, 8) for _ in range(2)]
         )
 
         self.query = nn.Parameter(torch.rand(128, d_model))
@@ -176,7 +176,8 @@ class TransformerPlanner(nn.Module):
         x = torch.cat([track_left_norm, track_right_norm], dim=1)
 
         latent = self.latent.expand(x.shape[0], -1, -1)
-        x = self.latent_block(latent, x)
+        for latent_block in self.latent_block:
+            x = latent_block(latent, x)
 
         query = self.query.expand(x.shape[0], -1, -1)
         x = self.decoder(query, x)
