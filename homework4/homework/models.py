@@ -110,8 +110,8 @@ class PerceiverBlock(nn.Module):
         self.processor = TransformerLayer(embed_dim, num_heads)
 
     def forward(self, q, x):
-        x = self.cross_attn(q, x)
-        x = self.self_attn(x, x)
+        x = self.encoder(q, x)
+        x = self.processor(x, x)
         return x
     
 
