@@ -49,7 +49,7 @@ def train(
     train_data = load_data("drive_data/train", transform_pipeline=transform_pipeline, shuffle=True, batch_size=batch_size, num_workers=num_workers)
     val_data = load_data("drive_data/val", transform_pipeline=transform_pipeline, shuffle=False)
 
-    if model_name == "mlp_planner":
+    if model_name == "mlp_planner" or model_name == "transformer_planner":
         mlp_norm(train_data, model, device)
     elif model_name == "cnn_planner":
         cnn_norm(train_data, model, device)
@@ -64,7 +64,7 @@ def train(
         model.train()
 
         for sample in train_data:
-            if model_name == "mlp_planner":
+            if model_name == "mlp_planner" or model_name == "transformer_planner":
                 track_left = sample["track_left"].to(device) # (b, 10, 2)
                 track_right = sample["track_right"].to(device) # (b, 10, 2)
                 out = model(track_left, track_right)
@@ -93,7 +93,7 @@ def train(
             model.eval()
 
             for sample in val_data:
-                if model_name == "mlp_planner":
+                if model_name == "mlp_planner" or model_name == "transformer_planner":
                     track_left = sample["track_left"].to(device) # (b, 10, 2)
                     track_right = sample["track_right"].to(device) # (b, 10, 2)
                     pred = model(track_left, track_right)
