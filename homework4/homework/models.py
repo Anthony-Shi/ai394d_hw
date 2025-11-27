@@ -139,7 +139,7 @@ class TransformerPlanner(nn.Module):
             -1,
             1,
         ))
-        self.embed = nn.Embedding(128, d_model)
+        self.embed = nn.Linear(2, d_model)
         self.latent_block = nn.ModuleList(
             [PerceiverBlock(d_model, 8) for _ in range(2)]
         )
@@ -175,6 +175,7 @@ class TransformerPlanner(nn.Module):
         track_right_norm = (track_right - self.input_mean) / self.input_std
         x = torch.cat([track_left_norm, track_right_norm], dim=1)
 
+        x = self.embed(x)
         latent = self.latent.expand(x.shape[0], -1, -1)
         for latent_block in self.latent_block:
             x = latent_block(latent, x)
