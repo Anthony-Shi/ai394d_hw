@@ -148,7 +148,7 @@ class TransformerPlanner(nn.Module):
 
         self.linear = nn.Sequential(
             nn.LayerNorm(d_model),
-            nn.Linear(d_model, self.n_waypoints*2),
+            nn.Linear(d_model, 2),
         )
 
     def forward(
