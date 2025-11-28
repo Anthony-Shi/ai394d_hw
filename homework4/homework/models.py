@@ -196,7 +196,6 @@ class CNNPlanner(nn.Module):
             self.bn = nn.BatchNorm2d(out_channels)
             self.relu = nn.ReLU()
             self.skip = nn.Conv2d(in_channels, out_channels, 1, stride=stride)
-            
 
         def forward(self, x):
             y = self.relu(self.bn(self.conv1(x)))
@@ -221,7 +220,7 @@ class CNNPlanner(nn.Module):
             y = self.relu(self.bn(self.conv2(y)))
             y = self.bn(self.conv3(y))
             x = self.skip(nn.functional.interpolate(x, scale_factor=self.stride))
-            return self.relu(y + self.bn(self.skip(x)))
+            return self.relu(y + self.bn(x))
 
     def __init__(
         self,
@@ -244,7 +243,10 @@ class CNNPlanner(nn.Module):
             c_out *= 2
         self.conv_net = nn.Sequential(*conv_layers)
         self.pool = nn.AdaptiveAvgPool2d(1)
-        self.linear = nn.Linear(c_out // 2, n_waypoints*2)
+        self.linear1 = nn.Linear(c_out // 2, 256)
+        self.linear2 = nn.Linear(256, n_waypoints*2)
+        self.relu = nn.ReLU()
+        self.dropout = nn.Dropout(0.3)
 
     def forward(self, image: torch.Tensor, **kwargs) -> torch.Tensor:
         """
@@ -256,7 +258,8 @@ class CNNPlanner(nn.Module):
         """
         image_norm = (image - self.input_mean[None, :, None, None]) / self.input_std[None, :, None, None]
         x = self.pool(self.conv_net(image_norm))
-        x = self.linear(x.squeeze())
+        x = self.dropout(self.relu(self.linear1(x.squeeze())))
+        x = self.linear2(x)
         y = x.view(-1, self.n_waypoints, 2)
         return y * self.output_std + self.output_mean
 
