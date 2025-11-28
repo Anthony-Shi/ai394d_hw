@@ -193,7 +193,7 @@ class CNNPlanner(nn.Module):
             self.conv1 = nn.Conv2d(in_channels, out_channels, kernel_size, stride, padding)
             self.conv2 = nn.Conv2d(out_channels, out_channels, kernel_size, 1, padding)
             self.conv3 = nn.Conv2d(out_channels, out_channels, kernel_size, 1, padding)
-            self.bn = nn.BatchNorm2d(out_channels)
+            self.bn = nn.GroupNorm(8, out_channels)
             self.relu = nn.ReLU()
             self.skip = nn.Conv2d(in_channels, out_channels, 1, stride=stride)
 
