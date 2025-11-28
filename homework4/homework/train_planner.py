@@ -51,10 +51,10 @@ def train(
 
     if model_name == "mlp_planner" or model_name == "transformer_planner":
         mlp_norm(train_data, model, device)
+        optim = torch.optim.AdamW(model.parameters(), lr=lr)
     elif model_name == "cnn_planner":
         cnn_norm(train_data, model, device)
-
-    optim = torch.optim.SGD(model.parameters(), lr=lr, momentum=0.9)
+        optim = torch.optim.SGD(model.parameters(), lr=lr, momentum=0.9)
 
     global_step = 0
 
