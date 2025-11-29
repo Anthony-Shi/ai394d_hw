@@ -178,7 +178,7 @@ class TransformerPlanner(nn.Module):
 
         latent = self.latent.expand(x.shape[0], -1, -1)
         for latent_block in self.latent_block:
-            x = latent_block(latent, x)
+            latent = latent_block(latent, x)
 
         query = self.query.expand(x.shape[0], -1, -1)
         x = self.decoder(query, x)
