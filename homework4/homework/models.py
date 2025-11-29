@@ -139,11 +139,12 @@ class TransformerPlanner(nn.Module):
             1,
         ))
         self.embed = nn.Linear(2, d_model)
+        self.pos_enc = nn.Parameter(torch.randn(1, n_track*2, d_model))
         self.latent_block = nn.ModuleList(
             [PerceiverBlock(d_model, 8) for _ in range(2)]
         )
 
-        self.query = nn.Parameter(torch.rand(self.n_waypoints, d_model))
+        self.query = nn.Parameter(torch.rand(n_waypoints, d_model))
         self.decoder = TransformerLayer(d_model, 8)
 
         self.linear = nn.Sequential(
@@ -170,11 +171,11 @@ class TransformerPlanner(nn.Module):
         Returns:
             torch.Tensor: future waypoints with shape (b, n_waypoints, 2)
         """
-        track_left_norm = (track_left - self.input_mean) / self.input_std
-        track_right_norm = (track_right - self.input_mean) / self.input_std
+        track_left_norm = self.embed((track_left - self.input_mean) / self.input_std)
+        track_right_norm = self.embed((track_right - self.input_mean) / self.input_std)
         x = torch.cat([track_left_norm, track_right_norm], dim=1)
+        x += self.pos_enc[:, :self.n_track]
 
-        x = self.embed(x)
         latent = self.latent.expand(x.shape[0], -1, -1)
         for latent_block in self.latent_block:
             x = latent_block(latent, x)
