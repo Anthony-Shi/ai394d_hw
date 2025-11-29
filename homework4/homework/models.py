@@ -174,7 +174,7 @@ class TransformerPlanner(nn.Module):
         track_left_norm = self.embed((track_left - self.input_mean) / self.input_std)
         track_right_norm = self.embed((track_right - self.input_mean) / self.input_std)
         x = torch.cat([track_left_norm, track_right_norm], dim=1)
-        x += self.pos_enc[:, :self.n_track]
+        x += self.pos_enc[:, :self.n_track*2]
 
         latent = self.latent.expand(x.shape[0], -1, -1)
         for latent_block in self.latent_block:
