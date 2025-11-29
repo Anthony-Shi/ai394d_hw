@@ -141,7 +141,7 @@ class TransformerPlanner(nn.Module):
         self.embed = nn.Linear(2, d_model)
         self.pos_enc = nn.Parameter(torch.randn(1, n_track*2, d_model))
         self.latent_block = nn.ModuleList(
-            [PerceiverBlock(d_model, 8) for _ in range(2)]
+            [PerceiverBlock(d_model, 8) for _ in range(3)]
         )
 
         self.query = nn.Parameter(torch.rand(n_waypoints, d_model))

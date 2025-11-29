@@ -83,6 +83,7 @@ def train(
             lateral_loss = loss_masked[..., 1].sum() / n
             l1_loss = longitudinal_loss + lateral_loss
             l1_loss.backward()
+            torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
             optim.step()
             
             train_metric.add(out, waypoints, waypoints_mask)
