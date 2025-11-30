@@ -51,7 +51,7 @@ def train(
 
     if model_name == "mlp_planner" or model_name == "transformer_planner":
         mlp_norm(train_data, model, device)
-        optim = torch.optim.AdamW(model.parameters(), lr=lr)
+        optim = torch.optim.AdamW(model.parameters(), lr=lr, weight_decay=1e-2)
     elif model_name == "cnn_planner":
         cnn_norm(train_data, model, device)
         optim = torch.optim.SGD(model.parameters(), lr=lr, momentum=0.9)
@@ -81,7 +81,7 @@ def train(
             n = waypoints_mask.sum()
             longitudinal_loss = loss_masked[..., 0].sum() / n
             lateral_loss = loss_masked[..., 1].sum() / n
-            l1_loss = longitudinal_loss + lateral_loss
+            l1_loss = longitudinal_loss + 2 * lateral_loss
             l1_loss.backward()
             torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
             optim.step()
