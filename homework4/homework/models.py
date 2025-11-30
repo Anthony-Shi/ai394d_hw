@@ -181,7 +181,7 @@ class TransformerPlanner(nn.Module):
             latent = latent_block(latent, x)
 
         query = self.query.expand(x.shape[0], -1, -1)
-        x = self.decoder(query, x)
+        x = self.decoder(query, latent)
         x = self.linear(x).view(-1, self.n_waypoints, 2)
         return x * self.output_std + self.output_mean
 
